@@ -1,0 +1,1 @@
+ALTER TABLE `parts` ADD CONSTRAINT `parts_part_number_unique` UNIQUE(`part_number`);
