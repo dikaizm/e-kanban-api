@@ -4,8 +4,8 @@ import apiResponse from '../../utils/api-response';
 import { db } from '../../db';
 import { orderFabricationSchema, orderSchema, orderStoreSchema } from '../../models/order.model';
 import { desc, eq } from 'drizzle-orm';
-import { partSchema, partStoreSchema } from '../../models/part.model';
-import { STATION_ID } from '../../const/global.const';
+import { partSchema, partShopFloorSchema, partStoreSchema } from '../../models/part.model';
+import { KANBAN_ID, STATION_ID } from '../../const/global.const';
 
 interface AsmStoreHandler {
   getAllOrders: HandlerFunction;
@@ -19,7 +19,7 @@ async function getAllOrders(req: Request, res: Response, next: NextFunction): Pr
       .select()
       .from(orderStoreSchema)
       .innerJoin(partSchema, eq(partSchema.id, orderStoreSchema.partId))
-      .orderBy(desc(orderStoreSchema.created_at));
+      .orderBy(desc(orderStoreSchema.createdAt));
 
     // Check if orders is empty
     if (orders.length === 0) {
@@ -38,7 +38,7 @@ async function getAllOrders(req: Request, res: Response, next: NextFunction): Pr
 
       return {
         ...order,
-        kanbanId: 'RYIN001',
+        kanbanId: KANBAN_ID.PRODUCTION,
         partNumber: part.partNumber,
         partName: part.partName,
         stock: partStock?.stock,
@@ -70,6 +70,7 @@ async function updateOrderStatus(req: Request, res: Response, next: NextFunction
 
     // Update order status
     if (status === 'production') {
+      // Create new order and shop floor in fabrication
       await db.update(orderStoreSchema).set({ status: 'production' }).where(eq(orderStoreSchema.id, id));
 
       // Create new order
@@ -83,6 +84,15 @@ async function updateOrderStatus(req: Request, res: Response, next: NextFunction
         orderId: order[0].insertId,
         partId: orderStore[0].partId,
         quantity: orderStore[0].quantity,
+        status: 'pending',
+      });
+
+      // Insert to shop floor fabrication
+      await db.insert(partShopFloorSchema).values({
+        orderId: order[0].insertId,
+        partId: orderStore[0].partId,
+        status: 'pending',
+        station: 'shop_floor',
       });
 
       res.status(201).json(apiResponse.success('Order to production created successfully', null));

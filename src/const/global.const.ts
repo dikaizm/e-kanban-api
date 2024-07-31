@@ -3,3 +3,8 @@ export const STATION_ID = {
   ASSEMBLY_STORE: 2,
   FABRICATION: 3,
 };
+
+export const KANBAN_ID = {
+  PRODUCTION: 'RYIN001',
+  WITHDRAWAL: 'RYIN002',
+};

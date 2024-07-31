@@ -4,6 +4,7 @@ import apiResponse from '../utils/api-response';
 import authRoutes from './user/user.routes';
 import assemblyLineRoutes from './assembly-line/asm-line.routes';
 import assemblyStoreRoutes from './assembly-store/asm-store.routes';
+import fabricationRoutes from './fabrication/asm-fabrication.routes';
 
 const router = express.Router();
 
@@ -16,5 +17,6 @@ router.use(authRoutes);
 // router.use('/orders', orderRoutes);
 router.use('/assembly-line', assemblyLineRoutes);
 router.use('/assembly-store', assemblyStoreRoutes);
+router.use('/fabrication', fabricationRoutes);
 
 export default router;

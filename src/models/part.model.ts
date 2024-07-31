@@ -1,4 +1,5 @@
-import { int, mysqlEnum, mysqlTable, serial, timestamp, varchar } from 'drizzle-orm/mysql-core';
+import { datetime, int, mysqlEnum, mysqlTable, serial, timestamp, varchar } from 'drizzle-orm/mysql-core';
+import { orderSchema } from './order.model';
 
 export const partSchema = mysqlTable('parts', {
   id: serial('id').primaryKey(),
@@ -22,10 +23,12 @@ export const partStoreSchema = mysqlTable('parts_store', {
 export const partShopFloorSchema = mysqlTable('parts_shop_floor', {
   id: serial('id').primaryKey(),
   partId: int('part_id').notNull().references(() => partSchema.id),
-  planStart: timestamp('plan_start').notNull(),
-  planFinish: timestamp('plan_finish').notNull(),
-  actualStart: timestamp('actual_start'),
-  actualFinish: timestamp('actual_finish'),
+  orderId: int('order_id').notNull().references(() => orderSchema.id),
+  planStart: datetime('plan_start', { mode: 'string' }),
+  planFinish: datetime('plan_finish', { mode: 'string' }),
+  actualStart: datetime('actual_start', { mode: 'string' }),
+  actualFinish: datetime('actual_finish', { mode: 'string' }),
+  status: mysqlEnum('status', ['pending', 'in_progress', 'finish']).notNull().default('pending'),
   station: mysqlEnum('station', ['shop_floor']).notNull().default('shop_floor'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').onUpdateNow(),

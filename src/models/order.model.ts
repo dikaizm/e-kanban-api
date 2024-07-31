@@ -7,8 +7,8 @@ export const orderSchema = mysqlTable('orders', {
   id: serial('id').primaryKey(),
   stationId: int('station_id').notNull().references(() => stationSchema.id),
   createdBy: int('created_by').notNull().references(() => users.id),
-  created_at: timestamp('created_at').notNull().defaultNow(),
-  updated_at: timestamp('updated_at').onUpdateNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').onUpdateNow(),
 });
 
 export const orderStoreSchema = mysqlTable('orders_store', {
@@ -17,8 +17,8 @@ export const orderStoreSchema = mysqlTable('orders_store', {
   partId: int('part_id').notNull().references(() => partSchema.id),
   quantity: int('quantity').notNull(),
   status: mysqlEnum('status', ['pending', 'production', 'deliver', 'finish']).notNull().default('production'),
-  created_at: timestamp('created_at').notNull().defaultNow(),
-  updated_at: timestamp('updated_at').onUpdateNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').onUpdateNow(),
 });
 
 export const orderFabricationSchema = mysqlTable('orders_fabrication', {
@@ -27,6 +27,6 @@ export const orderFabricationSchema = mysqlTable('orders_fabrication', {
   partId: int('part_id').notNull().references(() => partSchema.id),
   quantity: int('quantity').notNull(),
   status: mysqlEnum('status', ['pending', 'deliver', 'finish']).notNull().default('pending'),
-  created_at: timestamp('created_at').notNull().defaultNow(),
-  updated_at: timestamp('updated_at').onUpdateNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').onUpdateNow(),
 });

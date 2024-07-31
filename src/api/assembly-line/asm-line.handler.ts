@@ -21,9 +21,13 @@ async function getAllParts(req: Request, res: Response, next: NextFunction): Pro
   try {
     const parts = await db.select().from(partSchema);
 
-    const partStatus = parts.every((part) => part.quantity === part.quantityReq)
-      ? PART_STATUS.COMPLETE
-      : PART_STATUS.INCOMPLETE;
+    // Check part status
+    let partStatus = PART_STATUS.COMPLETE;
+    parts.forEach((part) => {
+      if (part.quantityReq > part.quantity) {
+        partStatus = PART_STATUS.INCOMPLETE;
+      }
+    });
 
     res.json(apiResponse.success('Parts retrieved successfully', { parts, partStatus }));
   } catch (error) {
@@ -36,24 +40,24 @@ async function createOrder(req: Request, res: Response, next: NextFunction): Pro
     const { partNumber, quantity } = req.body;
 
     if (!quantity || quantity <= 0) {
-      throw new Error('Quantity must be greater than 0');
+      res.status(400).json(apiResponse.error('Quantity must be greater than 0'));
     }
 
     const parts = await db.select().from(partSchema).where(eq(partSchema.partNumber, partNumber));
     if (parts.length === 0) {
-      throw new Error('Part not found');
+      res.status(404).json(apiResponse.error('Part not found'));
     }
 
     const part = parts[0];
 
     // Insert to order
     const order = await db.insert(orderSchema).values({
-      stationId: STATION_ID.ASSEMBLY_LINE,
+      stationId: STATION_ID.ASSEMBLY_STORE,
       createdBy: req.body.user.id,
     });
 
     // Check part stock in store
-    const partStore = await db.select().from(partStoreSchema).where(eq(partStoreSchema.partId, part.id)).limit(1);
+    let partStore = await db.select().from(partStoreSchema).where(eq(partStoreSchema.partId, part.id)).limit(1);
     if (partStore.length === 0) {
       // Insert to part store
       await db.insert(partStoreSchema).values({
@@ -61,6 +65,8 @@ async function createOrder(req: Request, res: Response, next: NextFunction): Pro
         stock: 0,
         status: 'pending',
       });
+
+      partStore = await db.select().from(partStoreSchema).where(eq(partStoreSchema.partId, part.id)).limit(1);
     }
 
     // Insert to order store
