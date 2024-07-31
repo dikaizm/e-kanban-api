@@ -1,14 +1,14 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
 import { sign } from 'jsonwebtoken';
 
 import authConfig from '../../config/auth';
 import { db } from '../../db';
 import { ApiErr } from '../../utils/api-error';
-import { LoginData, NewUser, users as userSchema, UserVerified } from './user.models';
+import { AuthResponse, LoginData, NewUser, users as userSchema, UserVerified } from './user.models';
 
 interface UserService {
-  login: (data: LoginData) => Promise<string>;
+  login: (data: LoginData) => Promise<AuthResponse>;
   logout: () => void;
   register: (data: NewUser) => Promise<void>;
   refreshToken: (user: UserVerified) => string;
@@ -20,9 +20,9 @@ interface UserService {
  * @param {LoginData} data - User login data
  * @returns Promise<string>
  */
-async function login(data: LoginData): Promise<string> {
+async function login(data: LoginData): Promise<AuthResponse> {
   try {
-    const { email, password } = data;
+    const { email, password, remember } = data;
 
     const users = await db.select().from(userSchema).where(eq(userSchema.email, email)).limit(1);
 
@@ -46,11 +46,21 @@ async function login(data: LoginData): Promise<string> {
       },
       authConfig.secret,
       {
-        expiresIn: '8h',
+        expiresIn: remember ? '30d' : '3d',
       },
     );
 
-    return token;
+    const authRes: AuthResponse = {
+      token,
+      user: {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    };
+    
+    return authRes;
+
   } catch (error) {
     throw error;
   }
@@ -73,8 +83,13 @@ async function logout() {
  */
 async function register(data: NewUser): Promise<void> {
   try {
-    const hashedPassword = await bcrypt.hash(data.password, 10);
+    // Check if user already exists
+    const users = await db.select().from(userSchema).where(eq(userSchema.email, data.email)).limit(1);
+    if (users.length > 0) {
+      throw ApiErr('User already exists', 400);
+    }
 
+    const hashedPassword = await bcrypt.hash(data.password, 10);
     if (!hashedPassword) throw Error('Failed to hash password');
 
     data.password = hashedPassword;

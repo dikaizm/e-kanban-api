@@ -17,7 +17,6 @@ CREATE TABLE `order_parts` (
 --> statement-breakpoint
 CREATE TABLE `orders` (
 	`id` serial AUTO_INCREMENT NOT NULL,
-	`description` text NOT NULL,
 	`status` varchar(256) NOT NULL,
 	`qty` int NOT NULL,
 	`created_by` int NOT NULL,
@@ -33,8 +32,8 @@ CREATE TABLE `orders` (
 CREATE TABLE `parts` (
 	`id` serial AUTO_INCREMENT NOT NULL,
 	`part_number` varchar(15) NOT NULL,
-	`name` varchar(256) NOT NULL,
-	`description` text NOT NULL,
+	`part_name` varchar(256) NOT NULL,
+	`quantity` int NOT NULL,
 	`created_at` timestamp NOT NULL DEFAULT (now()),
 	`updated_at` timestamp,
 	CONSTRAINT `parts_id` PRIMARY KEY(`id`)

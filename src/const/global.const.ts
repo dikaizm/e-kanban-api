@@ -1,0 +1,5 @@
+export const STATION_ID = {
+  ASSEMBLY_LINE: 1,
+  ASSEMBLY_STORE: 2,
+  FABRICATION: 3,
+};

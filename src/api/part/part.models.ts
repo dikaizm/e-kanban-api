@@ -1,30 +1,15 @@
-import { mysqlTable, serial, text, timestamp, varchar } from 'drizzle-orm/mysql-core';
 import { createInsertSchema } from 'drizzle-zod';
 import z from 'zod';
+import { partSchema } from '../../models/part.model';
 
-export const parts = mysqlTable('parts', {
-  id: serial('id').primaryKey(),
-  partNumber: varchar('part_number', { length: 15 }).unique().notNull(),
-  name: varchar('name', { length: 256 }).notNull(),
-  description: text('description').notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').onUpdateNow(),
+export const NewPart = createInsertSchema(partSchema, {
+  partNumber: z.string().min(1).max(256),
+  partName: z.string().min(1).max(256),
+  quantity: z.number().int().min(0).default(0),
+  quantityReq: z.number().int().min(0).default(0),
 });
 
-export const NewPart = createInsertSchema(parts, {
-  partNumber: z.string().min(1).max(15).refine((partNumber) => {
-    // Part number must be in the format of 1234.5678.9101
-    // e.g. 1234.5678.9101
-    const nums = partNumber.split('.');
-    return nums.length === 3 && nums.every((part) => !isNaN(parseInt(part)));
-  }, {
-    message: 'Invalid part number. Must be in the format of xxxx.xxxx.xxxx',
-  }),
-  name: z.string().min(1).max(256),
-  description: z.string().min(1),
-});
-
-export type Part = typeof parts.$inferSelect;
+export type Part = typeof partSchema.$inferSelect;
 export type NewPart = z.infer<typeof NewPart>;
 
 export const PartId = z.object({

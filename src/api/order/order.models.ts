@@ -1,9 +1,9 @@
 import { datetime, int, mysqlTable, serial, text, timestamp, varchar } from 'drizzle-orm/mysql-core';
 import z from 'zod';
 
-import { parts } from '../part/part.models';
 import { User, users } from '../user/user.models';
 import { createInsertSchema } from 'drizzle-zod';
+import { partSchema } from '../../models/part.model';
 
 // Orders
 export const orders = mysqlTable('orders', {
@@ -71,7 +71,7 @@ export const orderParts = mysqlTable('order_parts', {
     .references(() => orders.id, { onDelete: 'cascade' })
     .notNull(),
   partId: int('part_id')
-    .references(() => parts.id, { onDelete: 'cascade' })
+    .references(() => partSchema.id, { onDelete: 'cascade' })
     .notNull(),
   qty: int('qty').notNull(),
   status: varchar('status', { length: 256 }).notNull(),

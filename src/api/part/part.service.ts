@@ -2,7 +2,8 @@ import { eq } from 'drizzle-orm';
 
 import { db } from '../../db';
 import { ApiErr } from '../../utils/api-error';
-import { NewPart, Part, parts as partSchema } from './part.models';
+import { NewPart, Part } from './part.models';
+import { partSchema } from '../../models/part.model';
 
 interface PartService {
   getParts: () => Promise<Part[]>;
@@ -19,9 +20,9 @@ interface PartService {
  */
 async function getParts(): Promise<Part[]> {
   try {
-    const parts = await db.select().from(partSchema);
+    const result = await db.select().from(partSchema);
 
-    return parts;
+    return result;
   } catch (error) {
     throw error;
   }
@@ -35,13 +36,13 @@ async function getParts(): Promise<Part[]> {
  */
 async function getPartById(id: number): Promise<Part> {
   try {
-    const parts = await db.select().from(partSchema).where(eq(partSchema.id, id)).limit(1);
+    const result = await db.select().from(partSchema).where(eq(partSchema.id, id)).limit(1);
 
-    if (parts.length === 0) {
+    if (result.length === 0) {
       throw ApiErr('Part is not exist', 404);
     }
 
-    return parts[0];
+    return result[0];
   } catch (error) {
     throw error;
   }

@@ -24,12 +24,32 @@ export const NewUser = createInsertSchema(users, {
 export type User = typeof users.$inferSelect;
 export type NewUser = z.infer<typeof NewUser>;
 
+export const RegisterData = z.object({
+  name: z.string().min(1).max(256),
+  email: z.string().email().min(1).max(256),
+  role: z.enum(userRoles),
+  password: z.string().min(1).max(256),
+  confirmPassword: z.string().min(1).max(256),
+  registerKey: z.string().min(1).max(256),
+});
+
 export const LoginData = z.object({
   email: z.string().email().min(1).max(256),
   password: z.string().min(1).max(256),
+  remember: z.boolean().optional(),
 });
 
+export type RegisterData = z.infer<typeof RegisterData>;
 export type LoginData = z.infer<typeof LoginData>;
+
+export type AuthResponse = {
+  token: string;
+  user: {
+    name: string;
+    email: string;
+    role: string;
+  };
+};
 
 export type UserVerified = {
   id: number;

@@ -17,7 +17,18 @@ async function getAllParts(req: Request, res: Response, next: NextFunction): Pro
   try {
     const parts = await partService.getParts();
 
-    res.send(apiResponse.success('Parts retrieved successfully', parts));
+    // Check if part quantity is already complete
+    let partStatus = 'Not Complete';
+    for (const part of parts) {
+      if (part.quantity < part.quantityReq) {
+        partStatus = 'Not Complete';
+        break;
+      } else {
+        partStatus = 'Complete';
+      }
+    }
+
+    res.send(apiResponse.success('Parts retrieved successfully', { partStatus, parts }));
   } catch (error) {
     next(error);
   }
