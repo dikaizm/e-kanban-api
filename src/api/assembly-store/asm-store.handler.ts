@@ -10,6 +10,7 @@ import { STATION_ID } from '../../const/global.const';
 interface AsmStoreHandler {
   getAllOrders: HandlerFunction;
   updateOrderStatus: HandlerFunction;
+  getAllParts: HandlerFunction;
 }
 
 async function getAllOrders(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -36,16 +37,11 @@ async function getAllOrders(req: Request, res: Response, next: NextFunction): Pr
       const partStock = partStore.find((stock) => stock.partId === part.id);
 
       return {
-        id: order.id,
-        orderId: order.orderId,
+        ...order,
         kanbanId: 'RYIN001',
         partNumber: part.partNumber,
         partName: part.partName,
-        quantity: order.quantity,
         stock: partStock?.stock,
-        status: order.status,
-        created_at: order.created_at,
-        updated_at: order.updated_at,
       };
     });
 
@@ -85,6 +81,7 @@ async function updateOrderStatus(req: Request, res: Response, next: NextFunction
       // Insert order in order fabrication
       await db.insert(orderFabricationSchema).values({
         orderId: order[0].insertId,
+        partId: orderStore[0].partId,
         quantity: orderStore[0].quantity,
       });
 
@@ -115,7 +112,29 @@ async function updateOrderStatus(req: Request, res: Response, next: NextFunction
   }
 }
 
+async function getAllParts(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const parts = await db.select().from(partStoreSchema).innerJoin(partSchema, eq(partSchema.id, partStoreSchema.partId)).orderBy(desc(partStoreSchema.createdAt));
+
+    const partsData = parts.map((item) => {
+      const part = item.parts;
+      const partStore = item.parts_store;
+
+      return {
+        ...partStore,
+        partNumber: part.partNumber,
+        partName: part.partName,
+      };
+    });
+
+    res.json(apiResponse.success('Parts retrieved successfully', partsData));
+  } catch (error) {
+    next(error);
+  }
+}
+
 export default {
   getAllOrders,
   updateOrderStatus,
+  getAllParts,
 } satisfies AsmStoreHandler;

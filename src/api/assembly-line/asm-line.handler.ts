@@ -59,6 +59,7 @@ async function createOrder(req: Request, res: Response, next: NextFunction): Pro
       await db.insert(partStoreSchema).values({
         partId: part.id,
         stock: 0,
+        status: 'pending',
       });
     }
 

@@ -8,10 +8,13 @@ router.get('/', (req, res) => {
   res.send('Assembly Line routes');
 });
 
-// GET /api/v1/assembly-line/orders
+// GET /api/v1/assembly-store/orders
 router.get('/orders', verifyToken, handler.getAllOrders);
 
-// POST /api/v1/assembly-line/orders/status
+// POST /api/v1/assembly-store/orders/status
 router.post('/orders/status', verifyToken, handler.updateOrderStatus);
+
+// GET /api/v1/assembly-store/parts
+router.get('/parts', verifyToken, handler.getAllParts);
 
 export default router;

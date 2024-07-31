@@ -24,6 +24,7 @@ export const orderStoreSchema = mysqlTable('orders_store', {
 export const orderFabricationSchema = mysqlTable('orders_fabrication', {
   id: serial('id').primaryKey(),
   orderId: int('order_id').notNull().references(() => orderSchema.id),
+  partId: int('part_id').notNull().references(() => partSchema.id),
   quantity: int('quantity').notNull(),
   status: mysqlEnum('status', ['pending', 'deliver', 'finish']).notNull().default('pending'),
   created_at: timestamp('created_at').notNull().defaultNow(),
