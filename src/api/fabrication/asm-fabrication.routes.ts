@@ -26,4 +26,7 @@ router.put('/shop-floors/plan', verifyToken, handler.editPlanShopFloor);
 // PUT /api/v1/fabrication/shop-floors/status
 router.put('/shop-floors/status', verifyToken, handler.updateStatusShopFloor);
 
+// GET /api/v1/fabrication/kanbans
+router.get('/kanbans', verifyToken, handler.getAllKanbans);
+
 export default router;

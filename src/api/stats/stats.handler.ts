@@ -53,6 +53,10 @@ async function getProductionProgress(req: Request, res: Response, next: NextFunc
 async function getDelayOntime(req: Request, res: Response, next: NextFunction) {
   try {
     const shopFloors = await db.select().from(partShopFloorSchema).where(eq(partShopFloorSchema.status, 'finish'));
+    if (shopFloors.length === 0) {
+      res.json(apiResponse.success('Production progress is empty', null));
+      return;
+    }
 
     // Collect order ids from shop floors
     const orderIds = shopFloors.map((shopFloor) => shopFloor.orderId);

@@ -27,14 +27,14 @@ async function login(data: LoginData): Promise<AuthResponse> {
     const users = await db.select().from(userSchema).where(eq(userSchema.email, email)).limit(1);
 
     if (users.length === 0) {
-      throw ApiErr('These credentials do not match our records', 404);
+      throw ApiErr('Login failed', 401);
     }
 
     const user = users[0];
 
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      throw ApiErr('These credentials do not match our records', 404);
+      throw ApiErr('Login failed', 401);
     }
 
     const token = sign(

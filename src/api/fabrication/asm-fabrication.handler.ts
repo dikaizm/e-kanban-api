@@ -2,10 +2,11 @@ import { NextFunction, Request, Response } from 'express';
 import HandlerFunction from '../../utils/handler-function';
 import { db } from '../../db';
 import { desc, eq } from 'drizzle-orm';
-import { deliverOrderFabricationSchema, orderFabricationSchema } from '../../models/order.model';
+import { deliverOrderFabricationSchema, orderFabricationSchema, orderSchema } from '../../models/order.model';
 import apiResponse from '../../utils/api-response';
 import { partSchema, partShopFloorSchema, partStoreSchema } from '../../models/part.model';
-import { KANBAN_ID } from '../../const/global.const';
+import { KANBAN_ID, STATION_ID } from '../../const/global.const';
+import { kanbanSchema } from '../../models/kanban.model';
 
 interface AsmFabricationHandler {
   getAllOrders: HandlerFunction;
@@ -15,6 +16,8 @@ interface AsmFabricationHandler {
   getShopFloorById: HandlerFunction;
   editPlanShopFloor: HandlerFunction;
   updateStatusShopFloor: HandlerFunction;
+
+  getAllKanbans: HandlerFunction;
 }
 
 async function getAllOrders(req: Request, res: Response, next: NextFunction) {
@@ -59,14 +62,17 @@ async function deliverOrder(req: Request, res: Response, next: NextFunction) {
       return;
     }
 
-    // Update the order status
+    // Update order station
+    await db.update(orderSchema).set({ stationId: STATION_ID.ASSEMBLY_STORE }).where(eq(orderSchema.id, orderFabrication[0].orderId));
+
+    // Update the order fab status
     await db.update(orderFabricationSchema)
       .set({ status: 'finish' })
       .where(eq(orderFabricationSchema.id, orderIdInt));
 
     // Insert to deliver order fabrication
     await db.insert(deliverOrderFabricationSchema).values({
-      orderFabId: orderFabrication[0].id,
+      orderId: orderFabrication[0].orderId,
       partId: orderFabrication[0].partId,
       status: 'deliver',
     });
@@ -269,6 +275,15 @@ async function updateStatusShopFloor(req: Request, res: Response, next: NextFunc
   }
 }
 
+async function getAllKanbans(req: Request, res: Response, next: NextFunction) {
+  try {
+    const kanbans = await db.select().from(kanbanSchema);
+    res.json(apiResponse.success('Kanbans retrieved successfully', kanbans));
+  } catch (error) {
+    next(error);
+  }
+}
+
 export default {
   getAllOrders,
   deliverOrder,
@@ -277,4 +292,6 @@ export default {
   getShopFloorById,
   editPlanShopFloor,
   updateStatusShopFloor,
+
+  getAllKanbans,
 } satisfies AsmFabricationHandler;
