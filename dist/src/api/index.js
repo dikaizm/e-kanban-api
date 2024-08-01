@@ -9,6 +9,7 @@ const user_routes_1 = __importDefault(require("./user/user.routes"));
 const asm_line_routes_1 = __importDefault(require("./assembly-line/asm-line.routes"));
 const asm_store_routes_1 = __importDefault(require("./assembly-store/asm-store.routes"));
 const asm_fabrication_routes_1 = __importDefault(require("./fabrication/asm-fabrication.routes"));
+const stats_routes_1 = __importDefault(require("./stats/stats.routes"));
 const router = express_1.default.Router();
 router.get('/', (req, res) => {
     res.send(api_response_1.default.success('The API is live!', null));
@@ -19,5 +20,6 @@ router.use(user_routes_1.default);
 router.use('/assembly-line', asm_line_routes_1.default);
 router.use('/assembly-store', asm_store_routes_1.default);
 router.use('/fabrication', asm_fabrication_routes_1.default);
+router.use('/stats', stats_routes_1.default);
 exports.default = router;
 //# sourceMappingURL=index.js.map
