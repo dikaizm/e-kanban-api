@@ -2,9 +2,9 @@
   "name": "e-kanban-api",
   "version": "1.0.0",
   "description": "API for e-kanban",
-  "main": "src/index.ts",
+  "main": "dist/src/index.js",
   "scripts": {
-    "start": "ts-node src/index.ts",
+    "start": "node dist/src/index.js",
     "dev": "nodemon src/index.ts",
     "build": "tsc",
     "lint": "eslint --fix src test",
