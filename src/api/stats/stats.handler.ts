@@ -3,9 +3,9 @@ import HandlerFunction from '../../utils/handler-function';
 import apiResponse from '../../utils/api-response';
 import progressTrackService from './progress-track.service';
 import { db } from '../../db';
-import { partShopFloorSchema } from '../../models/part.model';
+import { partSchema, partShopFloorSchema } from '../../models/part.model';
 import { orderFabricationSchema } from '../../models/order.model';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, desc } from 'drizzle-orm';
 
 interface StatsHandler {
   getProgressTrack: HandlerFunction;
@@ -38,6 +38,12 @@ async function getProgressTrack(req: Request, res: Response, next: NextFunction)
 
 async function getProductionProgress(req: Request, res: Response, next: NextFunction) {
   try {
+    // Get shop floors data in progress
+    const selectedColumn = { partName: partSchema.partName, partNumber: partSchema.partNumber, station: partShopFloorSchema.station };
+
+    const shopFloors = await db.select(selectedColumn).from(partShopFloorSchema).innerJoin(partSchema, eq(partSchema.id, partShopFloorSchema.partId)).where(eq(partShopFloorSchema.status, 'in_progress')).orderBy(desc(partShopFloorSchema.createdAt));
+
+    res.json(apiResponse.success('Production progress data', shopFloors));
 
   } catch (error) {
     next(error);

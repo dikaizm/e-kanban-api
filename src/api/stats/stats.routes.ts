@@ -13,4 +13,7 @@ router.get('/progress-track', handler.getProgressTrack);
 // GET /api/v1/stats/delay-ontime
 router.get('/delay-ontime', handler.getDelayOntime);
 
+// GET /api/v1/stats/production-progress
+router.get('/production-progress', handler.getProductionProgress);
+
 export default router;
