@@ -30,3 +30,12 @@ export const orderFabricationSchema = mysqlTable('orders_fabrication', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').onUpdateNow(),
 });
+
+export const deliverOrderFabricationSchema = mysqlTable('deliver_orders_fabrication', {
+  id: serial('id').primaryKey(),
+  orderFabId: int('order_fab_id').notNull().references(() => orderFabricationSchema.id),
+  partId: int('part_id').notNull().references(() => partSchema.id),
+  status: mysqlEnum('status', ['deliver', 'finish']).notNull().default('deliver'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').onUpdateNow(),
+});

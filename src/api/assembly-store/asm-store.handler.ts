@@ -2,8 +2,8 @@ import { NextFunction, Request, Response } from 'express';
 import HandlerFunction from '../../utils/handler-function';
 import apiResponse from '../../utils/api-response';
 import { db } from '../../db';
-import { orderFabricationSchema, orderSchema, orderStoreSchema } from '../../models/order.model';
-import { desc, eq } from 'drizzle-orm';
+import { deliverOrderFabricationSchema, orderFabricationSchema, orderSchema, orderStoreSchema } from '../../models/order.model';
+import { desc, eq, inArray, sql } from 'drizzle-orm';
 import { partSchema, partShopFloorSchema, partStoreSchema } from '../../models/part.model';
 import { KANBAN_ID, STATION_ID } from '../../const/global.const';
 
@@ -11,6 +11,7 @@ interface AsmStoreHandler {
   getAllOrders: HandlerFunction;
   updateOrderStatus: HandlerFunction;
   getAllParts: HandlerFunction;
+  updatePartStatus: HandlerFunction;
 }
 
 async function getAllOrders(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -95,6 +96,9 @@ async function updateOrderStatus(req: Request, res: Response, next: NextFunction
         station: 'shop_floor',
       });
 
+      // Change part store status to order_to_fabrication
+      await db.update(partStoreSchema).set({ status: 'order_to_fabrication' }).where(eq(partStoreSchema.partId, orderStore[0].partId));
+
       res.status(201).json(apiResponse.success('Order to production created successfully', null));
 
     } else if (status === 'deliver') {
@@ -143,8 +147,70 @@ async function getAllParts(req: Request, res: Response, next: NextFunction): Pro
   }
 }
 
+async function updatePartStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id, status } = req.body;
+    if (!id || !status) {
+      res.status(400).json(apiResponse.error('Invalid request, id and status are required'));
+      return;
+    }
+
+    // Check if part store exists
+    const partStore = await db.select().from(partStoreSchema).where(eq(partStoreSchema.id, id)).limit(1);
+    if (partStore.length === 0) {
+      res.status(404).json(apiResponse.error('Part not found'));
+      return;
+    }
+    const currentStatus = partStore[0].status;
+    if (currentStatus !== 'receive') {
+      res.status(400).json(apiResponse.error('Part status is not receive'));
+      return;
+    }
+
+    if (status !== 'idle') {
+      res.status(400).json(apiResponse.error('Invalid status'));
+      return;
+    }
+
+    // Get updated stock from deliver order fabrication where status is deliver
+    const deliverOrders = await db.select().from(deliverOrderFabricationSchema).where(sql`status = 'deliver' and part_id = ${partStore[0].partId}`);
+    if (deliverOrders.length === 0) {
+      res.status(404).json(apiResponse.error('No deliver order found'));
+      return;
+    }
+    // Get quantity from order fabrication, use wherein
+    const orderFabrications = await db.select().from(orderFabricationSchema).where(inArray(orderFabricationSchema.id, deliverOrders.map((item) => item.orderFabId)));
+    if (orderFabrications.length === 0) {
+      res.status(404).json(apiResponse.error('No order fabrication found'));
+      return;
+    }
+
+    // Count new stock
+    const newStock = orderFabrications.reduce((acc, item) => acc + item.quantity, 0);
+
+    // Update stock and part status
+    await db.update(partStoreSchema).set({ status, stock: partStore[0].stock + newStock }).where(eq(partStoreSchema.id, id));
+
+    // Update status deliver order to finish
+    await db.update(deliverOrderFabricationSchema).set({ status: 'finish' }).where(inArray(deliverOrderFabricationSchema.orderFabId, orderFabrications.map((item) => item.id)));
+
+    // Check if order with this part ready to deliver
+    const orderStore = await db.select().from(orderStoreSchema).where(eq(orderStoreSchema.partId, partStore[0].partId));
+    orderStore.forEach(async (order) => {
+      if (order.quantity <= newStock) {
+        await db.update(orderStoreSchema).set({ status: 'deliver' }).where(eq(orderStoreSchema.id, order.id));
+      }
+    });
+
+    res.json(apiResponse.success('Part received successfully', null));
+  } catch (error) {
+    next(error);
+  }
+}
+
 export default {
   getAllOrders,
   updateOrderStatus,
   getAllParts,
+  updatePartStatus,
 } satisfies AsmStoreHandler;

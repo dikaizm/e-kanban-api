@@ -2,9 +2,9 @@ import { NextFunction, Request, Response } from 'express';
 import HandlerFunction from '../../utils/handler-function';
 import { db } from '../../db';
 import { desc, eq } from 'drizzle-orm';
-import { orderFabricationSchema } from '../../models/order.model';
+import { deliverOrderFabricationSchema, orderFabricationSchema } from '../../models/order.model';
 import apiResponse from '../../utils/api-response';
-import { partSchema, partShopFloorSchema } from '../../models/part.model';
+import { partSchema, partShopFloorSchema, partStoreSchema } from '../../models/part.model';
 import { KANBAN_ID } from '../../const/global.const';
 
 interface AsmFabricationHandler {
@@ -53,14 +53,31 @@ async function deliverOrder(req: Request, res: Response, next: NextFunction) {
       return;
     }
 
-    // Update the order status
-    const result = await db.update(orderFabricationSchema)
-      .set({ status: 'finish' })
-      .where(eq(orderFabricationSchema.id, parseInt(orderId)));
-    if (result[0].affectedRows === 0) {
+    const orderFabrication = await db.select().from(orderFabricationSchema).where(eq(orderFabricationSchema.id, orderIdInt)).limit(1);
+    if (!orderFabrication) {
       res.status(404).json(apiResponse.error('Order not found'));
       return;
     }
+
+    // Update the order status
+    await db.update(orderFabricationSchema)
+      .set({ status: 'finish' })
+      .where(eq(orderFabricationSchema.id, orderIdInt));
+
+    // Insert to deliver order fabrication
+    await db.insert(deliverOrderFabricationSchema).values({
+      orderFabId: orderFabrication[0].id,
+      partId: orderFabrication[0].partId,
+      status: 'deliver',
+    });
+
+    // Update part status in part store
+    const partStore = await db.select().from(partStoreSchema).where(eq(partStoreSchema.partId, orderFabrication[0].partId)).limit(1);
+    if (!partStore) {
+      res.status(404).json(apiResponse.error('Part not found in assembly store'));
+      return;
+    }
+    await db.update(partStoreSchema).set({ status: 'receive' }).where(eq(partStoreSchema.partId, orderFabrication[0].partId));
 
     res.json(apiResponse.success('Order delivered successfully', null));
   } catch (error) {

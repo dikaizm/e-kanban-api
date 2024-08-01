@@ -15,7 +15,7 @@ export const partStoreSchema = mysqlTable('parts_store', {
   id: serial('id').primaryKey(),
   partId: int('part_id').notNull().references(() => partSchema.id),
   stock: int('stock').notNull().default(0),
-  status: mysqlEnum('status', ['pending', 'order_to_fabrication', 'finish']).notNull().default('pending'),
+  status: mysqlEnum('status', ['idle', 'order_to_fabrication', 'receive']).notNull().default('idle'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').onUpdateNow(),
 });

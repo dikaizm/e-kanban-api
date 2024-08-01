@@ -63,7 +63,7 @@ async function createOrder(req: Request, res: Response, next: NextFunction): Pro
       await db.insert(partStoreSchema).values({
         partId: part.id,
         stock: 0,
-        status: 'pending',
+        status: 'idle',
       });
 
       partStore = await db.select().from(partStoreSchema).where(eq(partStoreSchema.partId, part.id)).limit(1);

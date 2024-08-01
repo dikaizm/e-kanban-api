@@ -17,4 +17,7 @@ router.post('/orders/status', verifyToken, handler.updateOrderStatus);
 // GET /api/v1/assembly-store/parts
 router.get('/parts', verifyToken, handler.getAllParts);
 
+// PUT /api/v1/assembly-store/parts/status
+router.put('/parts/status', verifyToken, handler.updatePartStatus);
+
 export default router;
