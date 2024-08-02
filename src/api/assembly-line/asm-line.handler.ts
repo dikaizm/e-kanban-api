@@ -6,10 +6,15 @@ import { partSchema, partStoreSchema } from '../../models/part.model';
 import { eq } from 'drizzle-orm';
 import { orderSchema, orderStoreSchema } from '../../models/order.model';
 import { STATION_ID } from '../../const/global.const';
+import { ApiErr } from '../../utils/api-error';
 
 interface AsmLineHandler {
   getAllParts: HandlerFunction;
+  getPartById: HandlerFunction;
+  updatePartQuantity: HandlerFunction;
+
   createOrder: HandlerFunction;
+
   startAssembleProduct: HandlerFunction;
 }
 
@@ -31,6 +36,46 @@ async function getAllParts(req: Request, res: Response, next: NextFunction): Pro
     });
 
     res.json(apiResponse.success('Parts retrieved successfully', { parts, partStatus }));
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getPartById(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      throw ApiErr('Invalid request', 400);
+    }
+
+    const part = await db.select().from(partSchema).where(eq(partSchema.id, parseInt(id)));
+    if (part.length === 0) {
+      throw ApiErr('Part not found', 404);
+    }
+
+    res.json(apiResponse.success('Part retrieved successfully', part[0]));
+    
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function updatePartQuantity(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id, quantity } = req.body;
+    if (!id || !quantity) {
+      throw ApiErr('Invalid request', 400);
+    }
+
+    const partId = parseInt(id);
+
+    const result = await db.update(partSchema).set({ quantity }).where(eq(partSchema.id, partId));
+    if (result[0].affectedRows === 0) {
+      throw ApiErr('Part not found', 404);
+    }
+
+    res.json(apiResponse.success('Part quantity updated successfully', null));
+
   } catch (error) {
     next(error);
   }
@@ -102,6 +147,8 @@ async function startAssembleProduct(req: Request, res: Response, next: NextFunct
 
 export default {
   getAllParts,
+  getPartById,
+  updatePartQuantity,
   createOrder,
   startAssembleProduct,
 } satisfies AsmLineHandler;
