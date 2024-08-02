@@ -13,28 +13,27 @@ const error_handler_1 = __importDefault(require("./middlewares/error-handler"));
 const not_found_1 = __importDefault(require("./middlewares/not-found"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
-const allowlist = [
-    'https://ekanban-manufacture.vercel.app',
-    'https://ekanban-manufacture-p5vzqwbum-stelar.vercel.app',
-    'http://localhost:5173',
-];
-const corsOptions = {
-    origin: (origin, callback) => {
-        if (!origin || allowlist.includes(origin)) {
-            callback(null, true);
-        }
-        else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
-    maxAge: 600, // 10 minutes
-};
+// const allowlist = [
+//   'https://ekanban-manufacture.vercel.app',
+//   'https://ekanban-manufacture-p5vzqwbum-stelar.vercel.app',
+//   'http://localhost:5173',
+// ];
+// const corsOptions: CorsOptions = {
+//   origin: (origin, callback) => {
+//     if (!origin || allowlist.includes(origin)) {
+//       callback(null, true);
+//     } else {
+//       callback(new Error('Not allowed by CORS'));
+//     }
+//   },
+//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+//   allowedHeaders: ['Content-Type', 'Authorization'],
+//   credentials: true,
+//   maxAge: 600, // 10 minutes
+// };
 app.use((0, morgan_1.default)('dev'));
 app.use((0, helmet_1.default)());
-app.use((0, cors_1.default)(corsOptions));
+app.use((0, cors_1.default)());
 app.use(express_1.default.json());
 // Routes
 app.use('/api/v1', api_1.default);
