@@ -6,6 +6,7 @@ import { kanbanSchema, kanbanWithdrawalSchema } from '../../models/kanban.model'
 import { eq } from 'drizzle-orm';
 import { orderFabricationSchema } from '../../models/order.model';
 import { partSchema } from '../../models/part.model';
+import { ApiErr } from '../../utils/api-error';
 
 interface KanbanHandler {
   getKanbanById: HandlerFunction;
@@ -72,6 +73,34 @@ async function getKanbanById(req: Request, res: Response, next: NextFunction) {
 
 async function updateKanbanStatus(req: Request, res: Response, next: NextFunction) {
   try {
+    const { id, status } = req.body;
+    if (!id || !status) {
+      throw ApiErr('Kanban ID and status are required', 400);
+    }
+
+    const kanban = await db.select().from(kanbanSchema).where(eq(kanbanSchema.id, id)).limit(1);
+    if (kanban.length === 0) {
+      throw ApiErr('Kanban not found', 404);
+    }
+    const kanbanData = kanban[0];
+
+    if (kanbanData.status === status) {
+      throw ApiErr('Kanban status is already the same', 400);
+    } else if (kanbanData.status === 'queue') {
+      if (status !== 'progress') {
+        throw ApiErr('Kanban status can only be changed to progress', 400);
+      }
+      await db.update(kanbanSchema).set({ status }).where(eq(kanbanSchema.id, id));
+    } else if (kanbanData.status === 'progress') {
+      if (status !== 'done') {
+        throw ApiErr('Kanban status can only be changed to done', 400);
+      }
+      await db.update(kanbanSchema).set({ status }).where(eq(kanbanSchema.id, id));
+    } else {
+      throw ApiErr('Kanban status cannot be changed', 400);
+    }
+
+    res.json(apiResponse.success('Kanban status updated successfully', null));
 
   } catch (error) {
     next(error);

@@ -9,6 +9,7 @@ const kanban_model_1 = require("../../models/kanban.model");
 const drizzle_orm_1 = require("drizzle-orm");
 const order_model_1 = require("../../models/order.model");
 const part_model_1 = require("../../models/part.model");
+const api_error_1 = require("../../utils/api-error");
 async function getKanbanById(req, res, next) {
     try {
         const { id } = req.params;
@@ -58,6 +59,34 @@ async function getKanbanById(req, res, next) {
 }
 async function updateKanbanStatus(req, res, next) {
     try {
+        const { id, status } = req.body;
+        if (!id || !status) {
+            throw (0, api_error_1.ApiErr)('Kanban ID and status are required', 400);
+        }
+        const kanban = await db_1.db.select().from(kanban_model_1.kanbanSchema).where((0, drizzle_orm_1.eq)(kanban_model_1.kanbanSchema.id, id)).limit(1);
+        if (kanban.length === 0) {
+            throw (0, api_error_1.ApiErr)('Kanban not found', 404);
+        }
+        const kanbanData = kanban[0];
+        if (kanbanData.status === status) {
+            throw (0, api_error_1.ApiErr)('Kanban status is already the same', 400);
+        }
+        else if (kanbanData.status === 'queue') {
+            if (status !== 'progress') {
+                throw (0, api_error_1.ApiErr)('Kanban status can only be changed to progress', 400);
+            }
+            await db_1.db.update(kanban_model_1.kanbanSchema).set({ status }).where((0, drizzle_orm_1.eq)(kanban_model_1.kanbanSchema.id, id));
+        }
+        else if (kanbanData.status === 'progress') {
+            if (status !== 'done') {
+                throw (0, api_error_1.ApiErr)('Kanban status can only be changed to done', 400);
+            }
+            await db_1.db.update(kanban_model_1.kanbanSchema).set({ status }).where((0, drizzle_orm_1.eq)(kanban_model_1.kanbanSchema.id, id));
+        }
+        else {
+            throw (0, api_error_1.ApiErr)('Kanban status cannot be changed', 400);
+        }
+        res.json(api_response_1.default.success('Kanban status updated successfully', null));
     }
     catch (error) {
         next(error);
