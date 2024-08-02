@@ -61,6 +61,10 @@ async function updateOrderStatus(req, res, next) {
         }
         // Update order status
         if (status === 'production') {
+            const { requestHost } = req.body;
+            if (!requestHost) {
+                throw (0, api_error_1.ApiErr)('Invalid request', 400);
+            }
             // Update order store status to production
             await db_1.db.update(order_model_1.orderStoreSchema).set({ status: 'production' }).where((0, drizzle_orm_1.eq)(order_model_1.orderStoreSchema.id, id));
             // Update order station to fabrication
@@ -81,7 +85,6 @@ async function updateOrderStatus(req, res, next) {
             });
             const currentTime = new Date().toLocaleString('sv-SE').replace(' ', 'T');
             const kanbanId = `${Math.random().toString(36).substr(2, 8)}-${Math.floor(Math.random() * 1E7)}`;
-            const requestHost = req.get('host');
             const qrCodeContent = `${requestHost}/confirm-kanban/${kanbanId}`;
             const qrCode = await (0, qr_code_1.generateQR)(qrCodeContent);
             await db_1.db.insert(kanban_model_1.kanbanSchema).values({
