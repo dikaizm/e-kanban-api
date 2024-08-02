@@ -54,7 +54,7 @@ async function getPartById(req: Request, res: Response, next: NextFunction): Pro
     }
 
     res.json(apiResponse.success('Part retrieved successfully', part[0]));
-    
+
   } catch (error) {
     next(error);
   }
@@ -65,6 +65,10 @@ async function updatePartQuantity(req: Request, res: Response, next: NextFunctio
     const { id, quantity } = req.body;
     if (!id || !quantity) {
       throw ApiErr('Invalid request', 400);
+    }
+
+    if (parseInt(quantity) <= 0) {
+      throw ApiErr('Quantity must be greater than 0', 400);
     }
 
     const partId = parseInt(id);
@@ -84,8 +88,11 @@ async function updatePartQuantity(req: Request, res: Response, next: NextFunctio
 async function createOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { partNumber, quantity } = req.body;
+    if (!partNumber || !quantity) {
+      res.status(400).json(apiResponse.error('Invalid request'));
+    }
 
-    if (!quantity || quantity <= 0) {
+    if (parseInt(quantity) <= 0) {
       res.status(400).json(apiResponse.error('Quantity must be greater than 0'));
     }
 

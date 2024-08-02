@@ -52,6 +52,9 @@ async function updatePartQuantity(req, res, next) {
         if (!id || !quantity) {
             throw (0, api_error_1.ApiErr)('Invalid request', 400);
         }
+        if (parseInt(quantity) <= 0) {
+            throw (0, api_error_1.ApiErr)('Quantity must be greater than 0', 400);
+        }
         const partId = parseInt(id);
         const result = await db_1.db.update(part_model_1.partSchema).set({ quantity }).where((0, drizzle_orm_1.eq)(part_model_1.partSchema.id, partId));
         if (result[0].affectedRows === 0) {
@@ -66,7 +69,10 @@ async function updatePartQuantity(req, res, next) {
 async function createOrder(req, res, next) {
     try {
         const { partNumber, quantity } = req.body;
-        if (!quantity || quantity <= 0) {
+        if (!partNumber || !quantity) {
+            res.status(400).json(api_response_1.default.error('Invalid request'));
+        }
+        if (parseInt(quantity) <= 0) {
             res.status(400).json(api_response_1.default.error('Quantity must be greater than 0'));
         }
         const parts = await db_1.db.select().from(part_model_1.partSchema).where((0, drizzle_orm_1.eq)(part_model_1.partSchema.partNumber, partNumber));
