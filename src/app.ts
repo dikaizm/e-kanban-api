@@ -12,7 +12,7 @@ dotenv.config();
 
 const app = express();
 
-const allowlist = ['https://ekanban-manufacture.vercel.app', 'http://localhost:5163'];
+const allowlist = ['https://ekanban-manufacture.vercel.app', 'http://localhost:5173', 'https://ekanban-manufacture-p5vzqwbum-stelar.vercel.app'];
 const corsOptionsDelegate = function (req: any, callback: any) {
   let corsOptions;
   if (allowlist.indexOf(req.header('Origin')) !== -1) {

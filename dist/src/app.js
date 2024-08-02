@@ -13,7 +13,7 @@ const error_handler_1 = __importDefault(require("./middlewares/error-handler"));
 const not_found_1 = __importDefault(require("./middlewares/not-found"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
-const allowlist = ['https://ekanban-manufacture.vercel.app', 'http://localhost:5163'];
+const allowlist = ['https://ekanban-manufacture.vercel.app', 'http://localhost:5173', 'https://ekanban-manufacture-p5vzqwbum-stelar.vercel.app'];
 const corsOptionsDelegate = function (req, callback) {
     let corsOptions;
     if (allowlist.indexOf(req.header('Origin')) !== -1) {
