@@ -280,8 +280,9 @@ interface KanbanType {
   partNumber: string;
   partName: string;
   quantity: number;
-  planStart: string;
+  planStart: string | null;
   status: 'queue' | 'progress' | 'done';
+  type: 'production' | 'withdrawal';
 }
 
 interface KanbanFilterType {
@@ -300,6 +301,8 @@ async function getAllKanbans(req: Request, res: Response, next: NextFunction) {
       planStart: partShopFloorSchema.planStart,
       status: kanbanSchema.status,
       cardId: kanbanSchema.cardId,
+      type: kanbanSchema.type,
+      orderId: orderSchema.id,
     };
     const kanbans = await db
       .select(selectedColumns)
@@ -307,7 +310,8 @@ async function getAllKanbans(req: Request, res: Response, next: NextFunction) {
       .innerJoin(orderSchema, eq(orderSchema.id, kanbanSchema.orderId))
       .innerJoin(orderFabricationSchema, eq(orderFabricationSchema.orderId, orderSchema.id))
       .innerJoin(partShopFloorSchema, eq(partShopFloorSchema.orderId, orderSchema.id))
-      .innerJoin(partSchema, eq(partSchema.id, orderFabricationSchema.partId));
+      .innerJoin(partSchema, eq(partSchema.id, orderFabricationSchema.partId))
+      .orderBy(desc(kanbanSchema.createdAt));
 
     // Organize kanbans based on status
     const kanbansData: KanbanFilterType = {
@@ -317,22 +321,12 @@ async function getAllKanbans(req: Request, res: Response, next: NextFunction) {
     };
 
     kanbans.forEach((kanban) => {
-      const kanbanData = {
-        id: kanban.id,
-        partNumber: kanban.partNumber,
-        partName: kanban.partName,
-        quantity: kanban.quantity,
-        planStart: kanban.planStart || '',
-        status: kanban.status,
-        cardId: kanban.cardId,
-      };
-
       if (kanban.status === 'queue') {
-        kanbansData.queue.push(kanbanData);
+        kanbansData.queue.push(kanban);
       } else if (kanban.status === 'progress') {
-        kanbansData.progress.push(kanbanData);
+        kanbansData.progress.push(kanban);
       } else if (kanban.status === 'done') {
-        kanbansData.done.push(kanbanData);
+        kanbansData.done.push(kanban);
       }
     });
 

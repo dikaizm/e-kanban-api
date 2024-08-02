@@ -230,6 +230,8 @@ async function getAllKanbans(req, res, next) {
             planStart: part_model_1.partShopFloorSchema.planStart,
             status: kanban_model_1.kanbanSchema.status,
             cardId: kanban_model_1.kanbanSchema.cardId,
+            type: kanban_model_1.kanbanSchema.type,
+            orderId: order_model_1.orderSchema.id,
         };
         const kanbans = await db_1.db
             .select(selectedColumns)
@@ -237,7 +239,8 @@ async function getAllKanbans(req, res, next) {
             .innerJoin(order_model_1.orderSchema, (0, drizzle_orm_1.eq)(order_model_1.orderSchema.id, kanban_model_1.kanbanSchema.orderId))
             .innerJoin(order_model_1.orderFabricationSchema, (0, drizzle_orm_1.eq)(order_model_1.orderFabricationSchema.orderId, order_model_1.orderSchema.id))
             .innerJoin(part_model_1.partShopFloorSchema, (0, drizzle_orm_1.eq)(part_model_1.partShopFloorSchema.orderId, order_model_1.orderSchema.id))
-            .innerJoin(part_model_1.partSchema, (0, drizzle_orm_1.eq)(part_model_1.partSchema.id, order_model_1.orderFabricationSchema.partId));
+            .innerJoin(part_model_1.partSchema, (0, drizzle_orm_1.eq)(part_model_1.partSchema.id, order_model_1.orderFabricationSchema.partId))
+            .orderBy((0, drizzle_orm_1.desc)(kanban_model_1.kanbanSchema.createdAt));
         // Organize kanbans based on status
         const kanbansData = {
             queue: [],
@@ -245,23 +248,14 @@ async function getAllKanbans(req, res, next) {
             done: [],
         };
         kanbans.forEach((kanban) => {
-            const kanbanData = {
-                id: kanban.id,
-                partNumber: kanban.partNumber,
-                partName: kanban.partName,
-                quantity: kanban.quantity,
-                planStart: kanban.planStart || '',
-                status: kanban.status,
-                cardId: kanban.cardId,
-            };
             if (kanban.status === 'queue') {
-                kanbansData.queue.push(kanbanData);
+                kanbansData.queue.push(kanban);
             }
             else if (kanban.status === 'progress') {
-                kanbansData.progress.push(kanbanData);
+                kanbansData.progress.push(kanban);
             }
             else if (kanban.status === 'done') {
-                kanbansData.done.push(kanbanData);
+                kanbansData.done.push(kanban);
             }
         });
         res.json(api_response_1.default.success('Kanbans retrieved successfully', kanbansData));
