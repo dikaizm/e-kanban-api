@@ -32,7 +32,7 @@ exports.orderFabricationSchema = (0, mysql_core_1.mysqlTable)('orders_fabricatio
 });
 exports.deliverOrderFabricationSchema = (0, mysql_core_1.mysqlTable)('deliver_orders_fabrication', {
     id: (0, mysql_core_1.serial)('id').primaryKey(),
-    orderFabId: (0, mysql_core_1.int)('order_fab_id').notNull().references(() => exports.orderFabricationSchema.id),
+    orderId: (0, mysql_core_1.int)('order_id').notNull().references(() => exports.orderSchema.id),
     partId: (0, mysql_core_1.int)('part_id').notNull().references(() => part_model_1.partSchema.id),
     status: (0, mysql_core_1.mysqlEnum)('status', ['deliver', 'finish']).notNull().default('deliver'),
     createdAt: (0, mysql_core_1.timestamp)('created_at').notNull().defaultNow(),

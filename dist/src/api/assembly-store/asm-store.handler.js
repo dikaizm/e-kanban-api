@@ -9,6 +9,9 @@ const order_model_1 = require("../../models/order.model");
 const drizzle_orm_1 = require("drizzle-orm");
 const part_model_1 = require("../../models/part.model");
 const global_const_1 = require("../../const/global.const");
+const kanban_model_1 = require("../../models/kanban.model");
+const qr_code_1 = require("../../utils/qr-code");
+const api_error_1 = require("../../utils/api-error");
 async function getAllOrders(req, res, next) {
     try {
         const orders = await db_1.db
@@ -46,38 +49,49 @@ async function updateOrderStatus(req, res, next) {
     try {
         const { id, status } = req.body;
         if (!id || !status) {
-            throw new Error('Invalid request');
+            throw (0, api_error_1.ApiErr)('Invalid request', 400);
         }
         // Check if order store exists
         const orderStore = await db_1.db.select().from(order_model_1.orderStoreSchema).where((0, drizzle_orm_1.eq)(order_model_1.orderStoreSchema.id, id)).limit(1);
         if (orderStore.length === 0) {
-            throw new Error('Order not found');
+            throw (0, api_error_1.ApiErr)('Order not found', 404);
         }
         if (status !== 'production' && status !== 'deliver' && status !== 'finish') {
-            throw new Error('Invalid status');
+            throw (0, api_error_1.ApiErr)('Invalid status', 400);
         }
         // Update order status
         if (status === 'production') {
-            // Create new order and shop floor in fabrication
+            // Update order store status to production
             await db_1.db.update(order_model_1.orderStoreSchema).set({ status: 'production' }).where((0, drizzle_orm_1.eq)(order_model_1.orderStoreSchema.id, id));
-            // Create new order
-            const order = await db_1.db.insert(order_model_1.orderSchema).values({
-                stationId: global_const_1.STATION_ID.FABRICATION,
-                createdBy: req.body.user.id,
-            });
+            // Update order station to fabrication
+            await db_1.db.update(order_model_1.orderSchema).set({ stationId: global_const_1.STATION_ID.FABRICATION }).where((0, drizzle_orm_1.eq)(order_model_1.orderSchema.id, orderStore[0].orderId));
             // Insert order in order fabrication
             await db_1.db.insert(order_model_1.orderFabricationSchema).values({
-                orderId: order[0].insertId,
+                orderId: orderStore[0].orderId,
                 partId: orderStore[0].partId,
                 quantity: orderStore[0].quantity,
                 status: 'pending',
             });
             // Insert to shop floor fabrication
             await db_1.db.insert(part_model_1.partShopFloorSchema).values({
-                orderId: order[0].insertId,
+                orderId: orderStore[0].orderId,
                 partId: orderStore[0].partId,
                 status: 'pending',
                 station: 'shop_floor',
+            });
+            const currentTime = new Date().toLocaleString('sv-SE').replace(' ', 'T');
+            const kanbanId = `${Math.random().toString(36).substr(2, 8)}-${Math.floor(Math.random() * 1E7)}`;
+            const requestHost = req.get('host');
+            const qrCodeContent = `${requestHost}/dashboard/kanban/${kanbanId}`;
+            const qrCode = await (0, qr_code_1.generateQR)(qrCodeContent);
+            await db_1.db.insert(kanban_model_1.kanbanSchema).values({
+                id: kanbanId,
+                type: 'production',
+                cardId: 'RYIN001',
+                status: 'queue',
+                qrCode: qrCode,
+                orderId: orderStore[0].orderId,
+                orderDate: currentTime,
             });
             // Change part store status to order_to_fabrication
             await db_1.db.update(part_model_1.partStoreSchema).set({ status: 'order_to_fabrication' }).where((0, drizzle_orm_1.eq)(part_model_1.partStoreSchema.partId, orderStore[0].partId));
@@ -91,12 +105,20 @@ async function updateOrderStatus(req, res, next) {
                 .where((0, drizzle_orm_1.eq)(part_model_1.partSchema.id, orderStore[0].partId))
                 .limit(1);
             if (!part.length) {
-                throw new Error('Part not found');
+                throw (0, api_error_1.ApiErr)('Part not found', 404);
             }
             // Update quantity in parts
             await db_1.db.update(part_model_1.partSchema)
                 .set({ quantity: part[0].quantity + orderStore[0].quantity })
                 .where((0, drizzle_orm_1.eq)(part_model_1.partSchema.id, orderStore[0].partId));
+            // Update quantity in part store
+            const partStore = await db_1.db.select().from(part_model_1.partStoreSchema).where((0, drizzle_orm_1.eq)(part_model_1.partStoreSchema.partId, orderStore[0].partId));
+            if (!partStore.length) {
+                throw (0, api_error_1.ApiErr)('Part store not found', 404);
+            }
+            await db_1.db.update(part_model_1.partStoreSchema)
+                .set({ stock: partStore[0].stock - orderStore[0].quantity })
+                .where((0, drizzle_orm_1.eq)(part_model_1.partStoreSchema.id, partStore[0].id));
             res.json(api_response_1.default.success('Order has been delivered successfully', null));
         }
     }
@@ -150,8 +172,9 @@ async function updatePartStatus(req, res, next) {
             res.status(404).json(api_response_1.default.error('No deliver order found'));
             return;
         }
+        const deliverOrderIds = deliverOrders.map((item) => item.orderId);
         // Get quantity from order fabrication, use wherein
-        const orderFabrications = await db_1.db.select().from(order_model_1.orderFabricationSchema).where((0, drizzle_orm_1.inArray)(order_model_1.orderFabricationSchema.id, deliverOrders.map((item) => item.orderFabId)));
+        const orderFabrications = await db_1.db.select().from(order_model_1.orderFabricationSchema).where((0, drizzle_orm_1.inArray)(order_model_1.orderFabricationSchema.orderId, deliverOrderIds));
         if (orderFabrications.length === 0) {
             res.status(404).json(api_response_1.default.error('No order fabrication found'));
             return;
@@ -161,9 +184,9 @@ async function updatePartStatus(req, res, next) {
         // Update stock and part status
         await db_1.db.update(part_model_1.partStoreSchema).set({ status, stock: partStore[0].stock + newStock }).where((0, drizzle_orm_1.eq)(part_model_1.partStoreSchema.id, id));
         // Update status deliver order to finish
-        await db_1.db.update(order_model_1.deliverOrderFabricationSchema).set({ status: 'finish' }).where((0, drizzle_orm_1.inArray)(order_model_1.deliverOrderFabricationSchema.orderFabId, orderFabrications.map((item) => item.id)));
+        await db_1.db.update(order_model_1.deliverOrderFabricationSchema).set({ status: 'finish' }).where((0, drizzle_orm_1.inArray)(order_model_1.deliverOrderFabricationSchema.orderId, deliverOrderIds));
         // Check if order with this part ready to deliver
-        const orderStore = await db_1.db.select().from(order_model_1.orderStoreSchema).where((0, drizzle_orm_1.eq)(order_model_1.orderStoreSchema.partId, partStore[0].partId));
+        const orderStore = await db_1.db.select().from(order_model_1.orderStoreSchema).where((0, drizzle_orm_1.inArray)(order_model_1.orderStoreSchema.orderId, deliverOrderIds));
         orderStore.forEach(async (order) => {
             if (order.quantity <= newStock) {
                 await db_1.db.update(order_model_1.orderStoreSchema).set({ status: 'deliver' }).where((0, drizzle_orm_1.eq)(order_model_1.orderStoreSchema.id, order.id));

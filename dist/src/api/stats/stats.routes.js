@@ -13,5 +13,7 @@ router.get('/', (req, res) => {
 router.get('/progress-track', stats_handler_1.default.getProgressTrack);
 // GET /api/v1/stats/delay-ontime
 router.get('/delay-ontime', stats_handler_1.default.getDelayOntime);
+// GET /api/v1/stats/production-progress
+router.get('/production-progress', stats_handler_1.default.getProductionProgress);
 exports.default = router;
 //# sourceMappingURL=stats.routes.js.map

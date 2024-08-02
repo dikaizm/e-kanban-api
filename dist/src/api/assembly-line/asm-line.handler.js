@@ -61,7 +61,7 @@ async function createOrder(req, res, next) {
             orderId: order[0].insertId,
             partId: part.id,
             quantity: quantity,
-            status: (partStore[0].stock >= quantity) ? 'deliver' : 'pending',
+            status: 'pending',
         });
         res.json(api_response_1.default.success('Order created successfully', null));
     }

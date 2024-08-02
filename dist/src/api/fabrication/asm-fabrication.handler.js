@@ -9,6 +9,7 @@ const order_model_1 = require("../../models/order.model");
 const api_response_1 = __importDefault(require("../../utils/api-response"));
 const part_model_1 = require("../../models/part.model");
 const global_const_1 = require("../../const/global.const");
+const kanban_model_1 = require("../../models/kanban.model");
 async function getAllOrders(req, res, next) {
     try {
         const orders = await db_1.db.select().from(order_model_1.orderFabricationSchema).innerJoin(part_model_1.partSchema, (0, drizzle_orm_1.eq)(part_model_1.partSchema.id, order_model_1.orderFabricationSchema.partId)).orderBy((0, drizzle_orm_1.desc)(order_model_1.orderFabricationSchema.createdAt));
@@ -45,13 +46,15 @@ async function deliverOrder(req, res, next) {
             res.status(404).json(api_response_1.default.error('Order not found'));
             return;
         }
-        // Update the order status
+        // Update order station
+        await db_1.db.update(order_model_1.orderSchema).set({ stationId: global_const_1.STATION_ID.ASSEMBLY_STORE }).where((0, drizzle_orm_1.eq)(order_model_1.orderSchema.id, orderFabrication[0].orderId));
+        // Update the order fab status
         await db_1.db.update(order_model_1.orderFabricationSchema)
             .set({ status: 'finish' })
             .where((0, drizzle_orm_1.eq)(order_model_1.orderFabricationSchema.id, orderIdInt));
         // Insert to deliver order fabrication
         await db_1.db.insert(order_model_1.deliverOrderFabricationSchema).values({
-            orderFabId: orderFabrication[0].id,
+            orderId: orderFabrication[0].orderId,
             partId: orderFabrication[0].partId,
             status: 'deliver',
         });
@@ -217,6 +220,15 @@ async function updateStatusShopFloor(req, res, next) {
         next(error);
     }
 }
+async function getAllKanbans(req, res, next) {
+    try {
+        const kanbans = await db_1.db.select().from(kanban_model_1.kanbanSchema);
+        res.json(api_response_1.default.success('Kanbans retrieved successfully', kanbans));
+    }
+    catch (error) {
+        next(error);
+    }
+}
 exports.default = {
     getAllOrders,
     deliverOrder,
@@ -224,5 +236,6 @@ exports.default = {
     getShopFloorById,
     editPlanShopFloor,
     updateStatusShopFloor,
+    getAllKanbans,
 };
 //# sourceMappingURL=asm-fabrication.handler.js.map

@@ -10,6 +10,8 @@ async function getAssemblyLineProgress() {
 async function getAssemblyStoreProgress() {
     // Get order store data
     const orderStores = await db_1.db.select().from(order_model_1.orderStoreSchema);
+    if (orderStores.length === 0)
+        return 0;
     // Count orders that doesn't have certain status
     const progressOrderQuantity = orderStores.filter((order) => order.status !== 'pending').reduce((acc, order) => acc + order.quantity, 0);
     // Count total order quantity
@@ -19,6 +21,8 @@ async function getAssemblyStoreProgress() {
 async function getFabricationProgress() {
     // Get order and shop floor data
     const orderFabrications = await db_1.db.select().from(order_model_1.orderFabricationSchema);
+    if (orderFabrications.length === 0)
+        return 0;
     // Collect order ids from order fabrication
     const orderIds = orderFabrications.map((order) => order.orderId);
     // Get order and match it with shop floor data that has the same order_id

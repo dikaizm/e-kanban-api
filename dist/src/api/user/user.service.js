@@ -21,12 +21,12 @@ async function login(data) {
         const { email, password, remember } = data;
         const users = await db_1.db.select().from(user_models_1.users).where((0, drizzle_orm_1.eq)(user_models_1.users.email, email)).limit(1);
         if (users.length === 0) {
-            throw (0, api_error_1.ApiErr)('These credentials do not match our records', 404);
+            throw (0, api_error_1.ApiErr)('Login failed', 401);
         }
         const user = users[0];
         const isValidPassword = await bcryptjs_1.default.compare(password, user.password);
         if (!isValidPassword) {
-            throw (0, api_error_1.ApiErr)('These credentials do not match our records', 404);
+            throw (0, api_error_1.ApiErr)('Login failed', 401);
         }
         const token = (0, jsonwebtoken_1.sign)({
             id: user.id,

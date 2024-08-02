@@ -29,6 +29,10 @@ async function getProgressTrack(req, res, next) {
 }
 async function getProductionProgress(req, res, next) {
     try {
+        // Get shop floors data in progress
+        const selectedColumn = { partName: part_model_1.partSchema.partName, partNumber: part_model_1.partSchema.partNumber, station: part_model_1.partShopFloorSchema.station };
+        const shopFloors = await db_1.db.select(selectedColumn).from(part_model_1.partShopFloorSchema).innerJoin(part_model_1.partSchema, (0, drizzle_orm_1.eq)(part_model_1.partSchema.id, part_model_1.partShopFloorSchema.partId)).where((0, drizzle_orm_1.eq)(part_model_1.partShopFloorSchema.status, 'in_progress')).orderBy((0, drizzle_orm_1.desc)(part_model_1.partShopFloorSchema.createdAt));
+        res.json(api_response_1.default.success('Production progress data', shopFloors));
     }
     catch (error) {
         next(error);
@@ -37,6 +41,10 @@ async function getProductionProgress(req, res, next) {
 async function getDelayOntime(req, res, next) {
     try {
         const shopFloors = await db_1.db.select().from(part_model_1.partShopFloorSchema).where((0, drizzle_orm_1.eq)(part_model_1.partShopFloorSchema.status, 'finish'));
+        if (shopFloors.length === 0) {
+            res.json(api_response_1.default.success('Production progress is empty', null));
+            return;
+        }
         // Collect order ids from shop floors
         const orderIds = shopFloors.map((shopFloor) => shopFloor.orderId);
         // Get order fabrication quantity
