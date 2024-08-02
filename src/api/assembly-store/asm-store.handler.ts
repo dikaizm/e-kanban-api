@@ -100,7 +100,7 @@ async function updateOrderStatus(req: Request, res: Response, next: NextFunction
       const kanbanId = `${Math.random().toString(36).substr(2, 8)}-${Math.floor(Math.random() * 1E7)}`;
 
       const requestHost = req.get('host')!;
-      const qrCodeContent = `${requestHost}/dashboard/kanban/${kanbanId}`;
+      const qrCodeContent = `${requestHost}/confirm-kanban/${kanbanId}`;
       const qrCode = await generateQR(qrCodeContent);
 
       await db.insert(kanbanSchema).values({

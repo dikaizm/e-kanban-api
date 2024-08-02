@@ -69,8 +69,22 @@ async function createOrder(req, res, next) {
         next(error);
     }
 }
+async function startAssembleProduct(req, res, next) {
+    try {
+        // Update each part quantity
+        const parts = await db_1.db.select().from(part_model_1.partSchema);
+        for (const part of parts) {
+            await db_1.db.update(part_model_1.partSchema).set({ quantity: part.quantity - part.quantityReq }).where((0, drizzle_orm_1.eq)(part_model_1.partSchema.id, part.id));
+        }
+        res.json(api_response_1.default.success('Start assemble product success', null));
+    }
+    catch (error) {
+        next(error);
+    }
+}
 exports.default = {
     getAllParts,
     createOrder,
+    startAssembleProduct,
 };
 //# sourceMappingURL=asm-line.handler.js.map

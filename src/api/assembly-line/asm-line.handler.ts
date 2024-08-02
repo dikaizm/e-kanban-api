@@ -10,6 +10,7 @@ import { STATION_ID } from '../../const/global.const';
 interface AsmLineHandler {
   getAllParts: HandlerFunction;
   createOrder: HandlerFunction;
+  startAssembleProduct: HandlerFunction;
 }
 
 const PART_STATUS = {
@@ -83,7 +84,24 @@ async function createOrder(req: Request, res: Response, next: NextFunction): Pro
   }
 }
 
+async function startAssembleProduct(req: Request, res: Response, next: NextFunction) {
+  try {
+    // Update each part quantity
+    const parts = await db.select().from(partSchema);
+
+    for (const part of parts) {
+      await db.update(partSchema).set({ quantity: part.quantity - part.quantityReq }).where(eq(partSchema.id, part.id));
+    }
+
+    res.json(apiResponse.success('Start assemble product success', null));
+
+  } catch (error) {
+    next(error);
+  }
+}
+
 export default {
   getAllParts,
   createOrder,
+  startAssembleProduct,
 } satisfies AsmLineHandler;

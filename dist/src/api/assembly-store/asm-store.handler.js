@@ -82,7 +82,7 @@ async function updateOrderStatus(req, res, next) {
             const currentTime = new Date().toLocaleString('sv-SE').replace(' ', 'T');
             const kanbanId = `${Math.random().toString(36).substr(2, 8)}-${Math.floor(Math.random() * 1E7)}`;
             const requestHost = req.get('host');
-            const qrCodeContent = `${requestHost}/dashboard/kanban/${kanbanId}`;
+            const qrCodeContent = `${requestHost}/confirm-kanban/${kanbanId}`;
             const qrCode = await (0, qr_code_1.generateQR)(qrCodeContent);
             await db_1.db.insert(kanban_model_1.kanbanSchema).values({
                 id: kanbanId,

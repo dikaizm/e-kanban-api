@@ -14,4 +14,7 @@ router.get('/parts', verifyToken, handler.getAllParts);
 // POST /api/v1/assembly-line/order
 router.post('/order', verifyToken, handler.createOrder);
 
+// GET /api/v1/assembly-line/start
+router.get('/parts/start', verifyToken, handler.startAssembleProduct);
+
 export default router;

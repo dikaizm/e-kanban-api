@@ -14,5 +14,7 @@ router.get('/', (req, res) => {
 router.get('/parts', verify_token_1.default, asm_line_handler_1.default.getAllParts);
 // POST /api/v1/assembly-line/order
 router.post('/order', verify_token_1.default, asm_line_handler_1.default.createOrder);
+// GET /api/v1/assembly-line/start
+router.get('/parts/start', verify_token_1.default, asm_line_handler_1.default.startAssembleProduct);
 exports.default = router;
 //# sourceMappingURL=asm-line.routes.js.map

@@ -7,6 +7,8 @@ const api_response_1 = __importDefault(require("../../utils/api-response"));
 const db_1 = require("../../db");
 const kanban_model_1 = require("../../models/kanban.model");
 const drizzle_orm_1 = require("drizzle-orm");
+const order_model_1 = require("../../models/order.model");
+const part_model_1 = require("../../models/part.model");
 async function getKanbanById(req, res, next) {
     try {
         const { id } = req.params;
@@ -32,7 +34,23 @@ async function getKanbanById(req, res, next) {
             }
             kanbanData.withdrawal = kanbanWithdrawal[0];
         }
-        res.json(api_response_1.default.success('Kanban retrieved successfully', kanban));
+        else {
+            // Get parts data
+            const orderStore = await db_1.db.select().from(order_model_1.orderFabricationSchema).where((0, drizzle_orm_1.eq)(order_model_1.orderFabricationSchema.orderId, kanbanData.orderId)).limit(1);
+            if (orderStore.length === 0) {
+                res.status(404).json(api_response_1.default.error('Order not found'));
+                return;
+            }
+            const part = await db_1.db.select().from(part_model_1.partSchema).where((0, drizzle_orm_1.eq)(part_model_1.partSchema.id, orderStore[0].partId)).limit(1);
+            if (part.length === 0) {
+                res.status(404).json(api_response_1.default.error('Part not found'));
+                return;
+            }
+            kanbanData.quantity = orderStore[0].quantity;
+            kanbanData.partName = part[0].partName;
+            kanbanData.partNumber = part[0].partNumber;
+        }
+        res.json(api_response_1.default.success('Kanban retrieved successfully', kanbanData));
     }
     catch (error) {
         next(error);
