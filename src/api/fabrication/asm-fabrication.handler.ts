@@ -275,26 +275,66 @@ async function updateStatusShopFloor(req: Request, res: Response, next: NextFunc
   }
 }
 
+interface KanbanType {
+  id: string;
+  partNumber: string;
+  partName: string;
+  quantity: number;
+  planStart: string;
+  status: 'queue' | 'progress' | 'done';
+}
+
+interface KanbanFilterType {
+  queue: KanbanType[];
+  progress: KanbanType[];
+  done: KanbanType[];
+}
+
 async function getAllKanbans(req: Request, res: Response, next: NextFunction) {
   try {
     const selectedColumns = {
-      
+      id: kanbanSchema.id,
+      partNumber: partSchema.partNumber,
+      partName: partSchema.partName,
+      quantity: orderFabricationSchema.quantity,
+      planStart: partShopFloorSchema.planStart,
+      status: kanbanSchema.status,
+      cardId: kanbanSchema.cardId,
     };
     const kanbans = await db
       .select(selectedColumns)
       .from(kanbanSchema)
       .innerJoin(orderSchema, eq(orderSchema.id, kanbanSchema.orderId))
       .innerJoin(orderFabricationSchema, eq(orderFabricationSchema.orderId, orderSchema.id))
+      .innerJoin(partShopFloorSchema, eq(partShopFloorSchema.orderId, orderSchema.id))
       .innerJoin(partSchema, eq(partSchema.id, orderFabricationSchema.partId));
 
     // Organize kanbans based on status
-    const kanbansData = {
+    const kanbansData: KanbanFilterType = {
       queue: [],
       progress: [],
       done: [],
     };
 
-    console.log(kanbans);
+    kanbans.forEach((kanban) => {
+      const kanbanData = {
+        id: kanban.id,
+        partNumber: kanban.partNumber,
+        partName: kanban.partName,
+        quantity: kanban.quantity,
+        planStart: kanban.planStart || '',
+        status: kanban.status,
+        cardId: kanban.cardId,
+      };
+
+      if (kanban.status === 'queue') {
+        kanbansData.queue.push(kanbanData);
+      } else if (kanban.status === 'progress') {
+        kanbansData.progress.push(kanbanData);
+      } else if (kanban.status === 'done') {
+        kanbansData.done.push(kanbanData);
+      }
+    });
 
     res.json(apiResponse.success('Kanbans retrieved successfully', kanbansData));
   } catch (error) {
