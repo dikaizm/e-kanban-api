@@ -1,4 +1,4 @@
-import cors from 'cors';
+import cors, { CorsOptions } from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import helmet from 'helmet';
@@ -12,20 +12,29 @@ dotenv.config();
 
 const app = express();
 
-const allowlist = ['https://ekanban-manufacture.vercel.app', 'http://localhost:5173', 'https://ekanban-manufacture-p5vzqwbum-stelar.vercel.app'];
-const corsOptionsDelegate = function (req: any, callback: any) {
-  let corsOptions;
-  if (allowlist.indexOf(req.header('Origin')) !== -1) {
-    corsOptions = { origin: true }; // reflect (enable) the requested origin in the CORS response
-  } else {
-    corsOptions = { origin: false }; // disable CORS for this request
-  }
-  callback(null, corsOptions); // callback expects two parameters: error and options
+const allowlist = [
+  'https://ekanban-manufacture.vercel.app',
+  'https://ekanban-manufacture-p5vzqwbum-stelar.vercel.app',
+  'http://localhost:5173',
+];
+
+const corsOptions: CorsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowlist.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  maxAge: 600, // 10 minutes
 };
 
 app.use(morgan('dev'));
 app.use(helmet());
-app.use(cors(corsOptionsDelegate));
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Routes
