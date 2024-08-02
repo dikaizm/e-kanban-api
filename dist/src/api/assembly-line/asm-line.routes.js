@@ -12,6 +12,10 @@ router.get('/', (req, res) => {
 });
 // GET /api/v1/assembly-line/parts
 router.get('/parts', verify_token_1.default, asm_line_handler_1.default.getAllParts);
+// GET /api/v1/assembly-line/part
+router.get('/part/:id', verify_token_1.default, asm_line_handler_1.default.getPartById);
+// PUT /api/v1/assembly-line/part
+router.put('/part', verify_token_1.default, asm_line_handler_1.default.updatePartQuantity);
 // POST /api/v1/assembly-line/order
 router.post('/order', verify_token_1.default, asm_line_handler_1.default.createOrder);
 // GET /api/v1/assembly-line/start

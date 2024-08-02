@@ -9,6 +9,7 @@ const part_model_1 = require("../../models/part.model");
 const drizzle_orm_1 = require("drizzle-orm");
 const order_model_1 = require("../../models/order.model");
 const global_const_1 = require("../../const/global.const");
+const api_error_1 = require("../../utils/api-error");
 const PART_STATUS = {
     COMPLETE: 'Complete',
     INCOMPLETE: 'Incomplete',
@@ -24,6 +25,39 @@ async function getAllParts(req, res, next) {
             }
         });
         res.json(api_response_1.default.success('Parts retrieved successfully', { parts, partStatus }));
+    }
+    catch (error) {
+        next(error);
+    }
+}
+async function getPartById(req, res, next) {
+    try {
+        const { id } = req.params;
+        if (!id) {
+            throw (0, api_error_1.ApiErr)('Invalid request', 400);
+        }
+        const part = await db_1.db.select().from(part_model_1.partSchema).where((0, drizzle_orm_1.eq)(part_model_1.partSchema.id, parseInt(id)));
+        if (part.length === 0) {
+            throw (0, api_error_1.ApiErr)('Part not found', 404);
+        }
+        res.json(api_response_1.default.success('Part retrieved successfully', part[0]));
+    }
+    catch (error) {
+        next(error);
+    }
+}
+async function updatePartQuantity(req, res, next) {
+    try {
+        const { id, quantity } = req.body;
+        if (!id || !quantity) {
+            throw (0, api_error_1.ApiErr)('Invalid request', 400);
+        }
+        const partId = parseInt(id);
+        const result = await db_1.db.update(part_model_1.partSchema).set({ quantity }).where((0, drizzle_orm_1.eq)(part_model_1.partSchema.id, partId));
+        if (result[0].affectedRows === 0) {
+            throw (0, api_error_1.ApiErr)('Part not found', 404);
+        }
+        res.json(api_response_1.default.success('Part quantity updated successfully', null));
     }
     catch (error) {
         next(error);
@@ -84,6 +118,8 @@ async function startAssembleProduct(req, res, next) {
 }
 exports.default = {
     getAllParts,
+    getPartById,
+    updatePartQuantity,
     createOrder,
     startAssembleProduct,
 };

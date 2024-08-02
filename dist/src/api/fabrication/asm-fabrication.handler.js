@@ -222,8 +222,21 @@ async function updateStatusShopFloor(req, res, next) {
 }
 async function getAllKanbans(req, res, next) {
     try {
-        const kanbans = await db_1.db.select().from(kanban_model_1.kanbanSchema);
-        res.json(api_response_1.default.success('Kanbans retrieved successfully', kanbans));
+        const selectedColumns = {};
+        const kanbans = await db_1.db
+            .select(selectedColumns)
+            .from(kanban_model_1.kanbanSchema)
+            .innerJoin(order_model_1.orderSchema, (0, drizzle_orm_1.eq)(order_model_1.orderSchema.id, kanban_model_1.kanbanSchema.orderId))
+            .innerJoin(order_model_1.orderFabricationSchema, (0, drizzle_orm_1.eq)(order_model_1.orderFabricationSchema.orderId, order_model_1.orderSchema.id))
+            .innerJoin(part_model_1.partSchema, (0, drizzle_orm_1.eq)(part_model_1.partSchema.id, order_model_1.orderFabricationSchema.partId));
+        // Organize kanbans based on status
+        const kanbansData = {
+            queue: [],
+            progress: [],
+            done: [],
+        };
+        console.log(kanbans);
+        res.json(api_response_1.default.success('Kanbans retrieved successfully', kanbansData));
     }
     catch (error) {
         next(error);
