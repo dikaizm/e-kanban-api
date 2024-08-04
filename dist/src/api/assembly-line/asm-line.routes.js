@@ -18,6 +18,8 @@ router.get('/part/:id', verify_token_1.default, asm_line_handler_1.default.getPa
 router.put('/part', verify_token_1.default, asm_line_handler_1.default.updatePartQuantity);
 // POST /api/v1/assembly-line/order
 router.post('/order', verify_token_1.default, asm_line_handler_1.default.createOrder);
+// DELETE /api/v1/assembly-line/order/:id
+router.delete('/order/:id', verify_token_1.default, asm_line_handler_1.default.deleteOrderById);
 // POST /api/v1/assembly-line/start
 router.post('/parts/start', verify_token_1.default, asm_line_handler_1.default.startAssembleComponent);
 // GET /api/v1/assembly-line/kanbans

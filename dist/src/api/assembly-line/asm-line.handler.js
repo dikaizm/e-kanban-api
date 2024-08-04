@@ -131,6 +131,46 @@ async function createOrder(req, res, next) {
         next(error);
     }
 }
+async function deleteOrderById(req, res, next) {
+    try {
+        const { id } = req.params;
+        if (!id) {
+            throw (0, api_error_1.ApiErr)('Invalid request', 400);
+        }
+        const orderId = parseInt(id);
+        // Check order status
+        const order = await db_1.db.select().from(order_model_1.orderSchema).where((0, drizzle_orm_1.eq)(order_model_1.orderSchema.id, orderId));
+        if (order.length === 0) {
+            throw (0, api_error_1.ApiErr)('Order not found', 404);
+        }
+        // Check if part shop floor status already in progress
+        const partShopFloor = await db_1.db.select().from(part_model_1.partShopFloorSchema).where((0, drizzle_orm_1.eq)(part_model_1.partShopFloorSchema.orderId, orderId));
+        if (partShopFloor.length > 0) {
+            if (partShopFloor[0].status === 'in_progress') {
+                throw (0, api_error_1.ApiErr)('Cannot delete order, part fabrication already in progress', 400);
+            }
+            else if (partShopFloor[0].status === 'finish') {
+                throw (0, api_error_1.ApiErr)('Cannot delete order, part fabrication already finished', 400);
+            }
+        }
+        // Delete order line
+        await db_1.db.delete(order_model_1.orderLineSchema).where((0, drizzle_orm_1.eq)(order_model_1.orderLineSchema.orderId, orderId));
+        // Delete order store
+        await db_1.db.delete(order_model_1.orderStoreSchema).where((0, drizzle_orm_1.eq)(order_model_1.orderStoreSchema.orderId, orderId));
+        // Delete order fabrication
+        await db_1.db.delete(order_model_1.orderFabricationSchema).where((0, drizzle_orm_1.eq)(order_model_1.orderFabricationSchema.orderId, orderId));
+        // Delete part shop floor
+        await db_1.db.delete(part_model_1.partShopFloorSchema).where((0, drizzle_orm_1.eq)(part_model_1.partShopFloorSchema.orderId, orderId));
+        // Delete kanban
+        await db_1.db.delete(kanban_model_1.kanbanSchema).where((0, drizzle_orm_1.eq)(kanban_model_1.kanbanSchema.orderId, orderId));
+        // Delete order
+        await db_1.db.delete(order_model_1.orderSchema).where((0, drizzle_orm_1.eq)(order_model_1.orderSchema.id, orderId));
+        res.json(api_response_1.default.success('Order deleted successfully', null));
+    }
+    catch (error) {
+        next(error);
+    }
+}
 async function startAssembleComponent(req, res, next) {
     try {
         const { requestHost, componentId } = req.body;
@@ -272,6 +312,7 @@ exports.default = {
     getPartById,
     updatePartQuantity,
     createOrder,
+    deleteOrderById,
     startAssembleComponent,
     getAllKanbans,
 };

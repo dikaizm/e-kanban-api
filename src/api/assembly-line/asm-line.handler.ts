@@ -2,9 +2,9 @@ import apiResponse from '../../utils/api-response';
 import { NextFunction, Request, Response } from 'express';
 import HandlerFunction from '../../utils/handler-function';
 import { db } from '../../db';
-import { componentSchema, partComponentSchema, partSchema, partStoreSchema } from '../../models/part.model';
+import { componentSchema, partComponentSchema, partSchema, partShopFloorSchema, partStoreSchema } from '../../models/part.model';
 import { desc, eq } from 'drizzle-orm';
-import { orderLineSchema, orderSchema, orderStoreSchema } from '../../models/order.model';
+import { orderFabricationSchema, orderLineSchema, orderSchema, orderStoreSchema } from '../../models/order.model';
 import { STATION_ID } from '../../const';
 import { ApiErr } from '../../utils/api-error';
 import { kanbanSchema, kanbanWithdrawalSchema } from '../../models/kanban.model';
@@ -18,6 +18,7 @@ interface AsmLineHandler {
   updatePartQuantity: HandlerFunction;
 
   createOrder: HandlerFunction;
+  deleteOrderById: HandlerFunction;
 
   startAssembleComponent: HandlerFunction;
   getAllKanbans: HandlerFunction;
@@ -158,6 +159,55 @@ async function createOrder(req: Request, res: Response, next: NextFunction): Pro
     }
 
     res.json(apiResponse.success('Order created successfully', null));
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function deleteOrderById(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      throw ApiErr('Invalid request', 400);
+    }
+
+    const orderId = parseInt(id);
+
+    // Check order status
+    const order = await db.select().from(orderSchema).where(eq(orderSchema.id, orderId));
+    if (order.length === 0) {
+      throw ApiErr('Order not found', 404);
+    }
+
+    // Check if part shop floor status already in progress
+    const partShopFloor = await db.select().from(partShopFloorSchema).where(eq(partShopFloorSchema.orderId, orderId));
+    if (partShopFloor.length > 0) {
+      if (partShopFloor[0].status === 'in_progress') {
+        throw ApiErr('Cannot delete order, part fabrication already in progress', 400);
+      } else if (partShopFloor[0].status === 'finish') {
+        throw ApiErr('Cannot delete order, part fabrication already finished', 400);
+      }
+    }
+
+    // Delete order line
+    await db.delete(orderLineSchema).where(eq(orderLineSchema.orderId, orderId));
+
+    // Delete order store
+    await db.delete(orderStoreSchema).where(eq(orderStoreSchema.orderId, orderId));
+
+    // Delete order fabrication
+    await db.delete(orderFabricationSchema).where(eq(orderFabricationSchema.orderId, orderId));
+
+    // Delete part shop floor
+    await db.delete(partShopFloorSchema).where(eq(partShopFloorSchema.orderId, orderId));
+
+    // Delete kanban
+    await db.delete(kanbanSchema).where(eq(kanbanSchema.orderId, orderId));
+
+    // Delete order
+    await db.delete(orderSchema).where(eq(orderSchema.id, orderId));
+
+    res.json(apiResponse.success('Order deleted successfully', null));
   } catch (error) {
     next(error);
   }
@@ -322,6 +372,7 @@ export default {
   getPartById,
   updatePartQuantity,
   createOrder,
+  deleteOrderById,
   startAssembleComponent,
   getAllKanbans,
 } satisfies AsmLineHandler;

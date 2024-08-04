@@ -20,6 +20,9 @@ router.put('/part', verifyToken, handler.updatePartQuantity);
 // POST /api/v1/assembly-line/order
 router.post('/order', verifyToken, handler.createOrder);
 
+// DELETE /api/v1/assembly-line/order/:id
+router.delete('/order/:id', verifyToken, handler.deleteOrderById);
+
 // POST /api/v1/assembly-line/start
 router.post('/parts/start', verifyToken, handler.startAssembleComponent);
 
