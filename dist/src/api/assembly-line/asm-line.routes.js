@@ -18,7 +18,9 @@ router.get('/part/:id', verify_token_1.default, asm_line_handler_1.default.getPa
 router.put('/part', verify_token_1.default, asm_line_handler_1.default.updatePartQuantity);
 // POST /api/v1/assembly-line/order
 router.post('/order', verify_token_1.default, asm_line_handler_1.default.createOrder);
-// GET /api/v1/assembly-line/start
-router.get('/parts/start', verify_token_1.default, asm_line_handler_1.default.startAssembleProduct);
+// POST /api/v1/assembly-line/start
+router.post('/parts/start', verify_token_1.default, asm_line_handler_1.default.startAssembleComponent);
+// GET /api/v1/assembly-line/kanbans
+router.get('/kanbans', verify_token_1.default, asm_line_handler_1.default.getAllKanbans);
 exports.default = router;
 //# sourceMappingURL=asm-line.routes.js.map

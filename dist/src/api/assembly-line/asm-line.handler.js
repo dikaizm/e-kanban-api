@@ -8,8 +8,11 @@ const db_1 = require("../../db");
 const part_model_1 = require("../../models/part.model");
 const drizzle_orm_1 = require("drizzle-orm");
 const order_model_1 = require("../../models/order.model");
-const global_const_1 = require("../../const/global.const");
+const const_1 = require("../../const");
 const api_error_1 = require("../../utils/api-error");
+const kanban_model_1 = require("../../models/kanban.model");
+const qr_code_1 = require("../../utils/qr-code");
+const station_model_1 = require("../../models/station.model");
 const PART_STATUS = {
     COMPLETE: 'Complete',
     INCOMPLETE: 'Incomplete',
@@ -68,7 +71,7 @@ async function updatePartQuantity(req, res, next) {
 }
 async function createOrder(req, res, next) {
     try {
-        const { partNumber, quantity } = req.body;
+        const { partNumber, quantity, requestHost } = req.body;
         if (!partNumber || !quantity) {
             res.status(400).json(api_response_1.default.error('Invalid request'));
         }
@@ -82,7 +85,7 @@ async function createOrder(req, res, next) {
         const part = parts[0];
         // Insert to order
         const order = await db_1.db.insert(order_model_1.orderSchema).values({
-            stationId: global_const_1.STATION_ID.ASSEMBLY_STORE,
+            stationId: const_1.STATION_ID.ASSEMBLY_STORE,
             createdBy: req.body.user.id,
         });
         // Check part stock in store
@@ -103,20 +106,162 @@ async function createOrder(req, res, next) {
             quantity: quantity,
             status: 'pending',
         });
+        // Insert to kanban
+        const currentTime = new Date().toLocaleString('sv-SE').replace(' ', 'T');
+        const kanbanId = `${Math.random().toString(36).substr(2, 8)}-${Math.floor(Math.random() * 1E7)}`;
+        const qrCodeContent = `${requestHost}/confirm-kanban/${kanbanId}`;
+        const qrCode = await (0, qr_code_1.generateQR)(qrCodeContent);
+        const newKanban = await db_1.db.insert(kanban_model_1.kanbanSchema).values({
+            id: kanbanId,
+            cardId: 'RYIN001',
+            type: 'production',
+            status: 'queue',
+            qrCode: qrCode,
+            orderId: order[0].insertId,
+            orderDate: currentTime,
+            planStart: currentTime,
+            stationId: const_1.STATION_ID.ASSEMBLY_LINE,
+        });
+        if (newKanban[0].affectedRows === 0) {
+            throw (0, api_error_1.ApiErr)('Failed to create kanban', 500);
+        }
         res.json(api_response_1.default.success('Order created successfully', null));
     }
     catch (error) {
         next(error);
     }
 }
-async function startAssembleProduct(req, res, next) {
+async function startAssembleComponent(req, res, next) {
     try {
+        const { requestHost, componentId } = req.body;
+        if (!requestHost || !componentId) {
+            throw (0, api_error_1.ApiErr)('Invalid request', 400);
+        }
         // Update each part quantity
         const parts = await db_1.db.select().from(part_model_1.partSchema);
-        for (const part of parts) {
-            await db_1.db.update(part_model_1.partSchema).set({ quantity: part.quantity - part.quantityReq }).where((0, drizzle_orm_1.eq)(part_model_1.partSchema.id, part.id));
+        let isPartComponentExist = false;
+        const partComponent = await db_1.db.select().from(part_model_1.partComponentSchema).where((0, drizzle_orm_1.eq)(part_model_1.partComponentSchema.componentId, componentId));
+        if (partComponent.length > 0) {
+            isPartComponentExist = true;
         }
+        for (const part of parts) {
+            // Count part availability
+            const newQuantity = part.quantity - part.quantityReq;
+            if (newQuantity < 0) {
+                throw (0, api_error_1.ApiErr)('Part quantity does not meet requirement', 400);
+            }
+            await db_1.db.update(part_model_1.partSchema).set({ quantity: newQuantity }).where((0, drizzle_orm_1.eq)(part_model_1.partSchema.id, part.id));
+            // Insert to part component if not exist
+            if (!isPartComponentExist) {
+                await db_1.db.insert(part_model_1.partComponentSchema).values({
+                    componentId: componentId,
+                    partId: part.id,
+                });
+            }
+        }
+        // Create new order
+        const newOrder = await db_1.db.insert(order_model_1.orderSchema).values({
+            stationId: const_1.STATION_ID.ASSEMBLY_LINE,
+            createdBy: req.body.user.id,
+        });
+        // Insert to order line
+        await db_1.db.insert(order_model_1.orderLineSchema).values({
+            orderId: newOrder[0].insertId,
+            componentId: componentId,
+            status: 'progress',
+            quantity: 1,
+        });
+        // Insert to kanban
+        const currentTime = new Date().toLocaleString('sv-SE').replace(' ', 'T');
+        const kanbanId = `${Math.random().toString(36).substr(2, 8)}-${Math.floor(Math.random() * 1E7)}`;
+        const qrCodeContent = `${requestHost}/confirm-kanban/${kanbanId}`;
+        const qrCode = await (0, qr_code_1.generateQR)(qrCodeContent);
+        const newKanban = await db_1.db.insert(kanban_model_1.kanbanSchema).values({
+            id: kanbanId,
+            cardId: 'RYIN002',
+            type: 'withdrawal',
+            status: 'progress',
+            qrCode: qrCode,
+            orderId: newOrder[0].insertId,
+            orderDate: currentTime,
+            planStart: currentTime,
+            stationId: const_1.STATION_ID.ASSEMBLY_LINE,
+        });
+        if (newKanban[0].affectedRows === 0) {
+            throw (0, api_error_1.ApiErr)('Failed to create kanban', 500);
+        }
+        // Insert to kanban withdrawal
+        await db_1.db.insert(kanban_model_1.kanbanWithdrawalSchema).values({
+            kanbanId: kanbanId,
+            prevStationId: const_1.STATION_ID.ASSEMBLY_STORE,
+            nextStationId: const_1.STATION_ID.ASSEMBLY_LINE,
+        });
         res.json(api_response_1.default.success('Start assemble product success', null));
+    }
+    catch (error) {
+        next(error);
+    }
+}
+async function getAllKanbans(req, res, next) {
+    try {
+        const selectedWithdrawalColumns = {
+            id: kanban_model_1.kanbanSchema.id,
+            partName: part_model_1.componentSchema.name,
+            quantity: order_model_1.orderLineSchema.quantity,
+            planStart: kanban_model_1.kanbanSchema.planStart,
+            status: kanban_model_1.kanbanSchema.status,
+            cardId: kanban_model_1.kanbanSchema.cardId,
+            type: kanban_model_1.kanbanSchema.type,
+            orderId: kanban_model_1.kanbanSchema.orderId,
+            stationName: station_model_1.stationSchema.name,
+        };
+        const kanbanWithdrawals = await db_1.db.select(selectedWithdrawalColumns).from(kanban_model_1.kanbanSchema)
+            .innerJoin(kanban_model_1.kanbanWithdrawalSchema, (0, drizzle_orm_1.eq)(kanban_model_1.kanbanWithdrawalSchema.kanbanId, kanban_model_1.kanbanSchema.id))
+            .innerJoin(order_model_1.orderSchema, (0, drizzle_orm_1.eq)(order_model_1.orderSchema.id, kanban_model_1.kanbanSchema.orderId))
+            .innerJoin(order_model_1.orderLineSchema, (0, drizzle_orm_1.eq)(order_model_1.orderLineSchema.orderId, order_model_1.orderSchema.id))
+            .innerJoin(part_model_1.componentSchema, (0, drizzle_orm_1.eq)(part_model_1.componentSchema.id, order_model_1.orderLineSchema.componentId))
+            .innerJoin(station_model_1.stationSchema, (0, drizzle_orm_1.eq)(station_model_1.stationSchema.id, kanban_model_1.kanbanSchema.stationId))
+            .where((0, drizzle_orm_1.eq)(kanban_model_1.kanbanSchema.stationId, const_1.STATION_ID.ASSEMBLY_LINE))
+            .orderBy((0, drizzle_orm_1.desc)(kanban_model_1.kanbanSchema.createdAt));
+        const selectedProductionColumns = {
+            id: kanban_model_1.kanbanSchema.id,
+            partNumber: part_model_1.partSchema.partNumber,
+            partName: part_model_1.partSchema.partName,
+            quantity: order_model_1.orderStoreSchema.quantity,
+            planStart: kanban_model_1.kanbanSchema.planStart,
+            status: kanban_model_1.kanbanSchema.status,
+            cardId: kanban_model_1.kanbanSchema.cardId,
+            type: kanban_model_1.kanbanSchema.type,
+            orderId: kanban_model_1.kanbanSchema.orderId,
+            stationName: station_model_1.stationSchema.name,
+        };
+        const kanbanProductions = await db_1.db.select(selectedProductionColumns).from(kanban_model_1.kanbanSchema)
+            .innerJoin(order_model_1.orderSchema, (0, drizzle_orm_1.eq)(order_model_1.orderSchema.id, kanban_model_1.kanbanSchema.orderId))
+            .innerJoin(order_model_1.orderStoreSchema, (0, drizzle_orm_1.eq)(order_model_1.orderStoreSchema.orderId, order_model_1.orderSchema.id))
+            .innerJoin(part_model_1.partSchema, (0, drizzle_orm_1.eq)(part_model_1.partSchema.id, order_model_1.orderStoreSchema.partId))
+            .innerJoin(station_model_1.stationSchema, (0, drizzle_orm_1.eq)(station_model_1.stationSchema.id, kanban_model_1.kanbanSchema.stationId))
+            .where((0, drizzle_orm_1.eq)(kanban_model_1.kanbanSchema.stationId, const_1.STATION_ID.ASSEMBLY_LINE))
+            .orderBy((0, drizzle_orm_1.desc)(kanban_model_1.kanbanSchema.createdAt));
+        // Organize kanbans
+        const kanbansData = {
+            queue: [],
+            progress: [],
+            done: [],
+        };
+        kanbanProductions.forEach((kanban) => {
+            if (kanban.status === 'queue') {
+                kanbansData.queue.push(kanban);
+            }
+        });
+        kanbanWithdrawals.forEach((kanban) => {
+            if (kanban.status === 'progress') {
+                kanbansData.progress.push(kanban);
+            }
+            else if (kanban.status === 'done') {
+                kanbansData.done.push(kanban);
+            }
+        });
+        res.json(api_response_1.default.success('Kanbans retrieved successfully', kanbansData));
     }
     catch (error) {
         next(error);
@@ -127,6 +272,7 @@ exports.default = {
     getPartById,
     updatePartQuantity,
     createOrder,
-    startAssembleProduct,
+    startAssembleComponent,
+    getAllKanbans,
 };
 //# sourceMappingURL=asm-line.handler.js.map

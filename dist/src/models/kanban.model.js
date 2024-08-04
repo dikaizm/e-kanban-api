@@ -14,14 +14,15 @@ exports.kanbanSchema = (0, mysql_core_1.mysqlTable)('kanbans', {
     orderDate: (0, mysql_core_1.datetime)('order_date', { mode: 'string' }).notNull(),
     finishDate: (0, mysql_core_1.datetime)('finish_date', { mode: 'string' }),
     planStart: (0, mysql_core_1.datetime)('plan_start', { mode: 'string' }),
+    stationId: (0, mysql_core_1.int)('station_id').notNull().references(() => station_model_1.stationSchema.id),
     createdAt: (0, mysql_core_1.timestamp)('created_at').notNull().defaultNow(),
     updatedAt: (0, mysql_core_1.timestamp)('updated_at').onUpdateNow(),
 });
 exports.kanbanWithdrawalSchema = (0, mysql_core_1.mysqlTable)('kanbans_withdrawal', {
     id: (0, mysql_core_1.serial)('id').primaryKey(),
     kanbanId: (0, mysql_core_1.varchar)('kanban_id', { length: 16 }).notNull().references(() => exports.kanbanSchema.id),
-    prevStation: (0, mysql_core_1.int)('prev_station').notNull().references(() => station_model_1.stationSchema.id),
-    nextStation: (0, mysql_core_1.int)('next_station').notNull().references(() => station_model_1.stationSchema.id),
+    prevStationId: (0, mysql_core_1.int)('prev_station_id').notNull().references(() => station_model_1.stationSchema.id),
+    nextStationId: (0, mysql_core_1.int)('next_station_id').notNull().references(() => station_model_1.stationSchema.id),
     createdAt: (0, mysql_core_1.timestamp)('created_at').notNull().defaultNow(),
     updatedAt: (0, mysql_core_1.timestamp)('updated_at').onUpdateNow(),
 });

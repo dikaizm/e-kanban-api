@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.partShopFloorSchema = exports.partStoreSchema = exports.partSchema = void 0;
+exports.partComponentSchema = exports.componentSchema = exports.partShopFloorSchema = exports.partStoreSchema = exports.partSchema = void 0;
 const mysql_core_1 = require("drizzle-orm/mysql-core");
 const order_model_1 = require("./order.model");
 exports.partSchema = (0, mysql_core_1.mysqlTable)('parts', {
@@ -32,5 +32,17 @@ exports.partShopFloorSchema = (0, mysql_core_1.mysqlTable)('parts_shop_floor', {
     station: (0, mysql_core_1.mysqlEnum)('station', ['shop_floor']).notNull().default('shop_floor'),
     createdAt: (0, mysql_core_1.timestamp)('created_at').notNull().defaultNow(),
     updatedAt: (0, mysql_core_1.timestamp)('updated_at').onUpdateNow(),
+});
+exports.componentSchema = (0, mysql_core_1.mysqlTable)('components', {
+    id: (0, mysql_core_1.serial)('id').primaryKey(),
+    name: (0, mysql_core_1.varchar)('name', { length: 256 }).notNull(),
+    quantity: (0, mysql_core_1.int)('quantity').notNull().default(0),
+    createdAt: (0, mysql_core_1.timestamp)('created_at').notNull().defaultNow(),
+    updatedAt: (0, mysql_core_1.timestamp)('updated_at').onUpdateNow(),
+});
+exports.partComponentSchema = (0, mysql_core_1.mysqlTable)('parts_component', {
+    id: (0, mysql_core_1.serial)('id').primaryKey(),
+    partId: (0, mysql_core_1.int)('part_id').notNull().references(() => exports.partSchema.id),
+    componentId: (0, mysql_core_1.int)('component_id').notNull().references(() => exports.componentSchema.id),
 });
 //# sourceMappingURL=part.model.js.map

@@ -8,7 +8,7 @@ const drizzle_orm_1 = require("drizzle-orm");
 const order_model_1 = require("../../models/order.model");
 const api_response_1 = __importDefault(require("../../utils/api-response"));
 const part_model_1 = require("../../models/part.model");
-const global_const_1 = require("../../const/global.const");
+const const_1 = require("../../const");
 const kanban_model_1 = require("../../models/kanban.model");
 async function getAllOrders(req, res, next) {
     try {
@@ -18,7 +18,7 @@ async function getAllOrders(req, res, next) {
             const part = item.parts;
             return {
                 ...order,
-                kanbanId: global_const_1.KANBAN_ID.PRODUCTION,
+                kanbanId: const_1.KANBAN_ID.PRODUCTION,
                 partNumber: part.partNumber,
                 partName: part.partName,
             };
@@ -47,7 +47,7 @@ async function deliverOrder(req, res, next) {
             return;
         }
         // Update order station
-        await db_1.db.update(order_model_1.orderSchema).set({ stationId: global_const_1.STATION_ID.ASSEMBLY_STORE }).where((0, drizzle_orm_1.eq)(order_model_1.orderSchema.id, orderFabrication[0].orderId));
+        await db_1.db.update(order_model_1.orderSchema).set({ stationId: const_1.STATION_ID.ASSEMBLY_STORE }).where((0, drizzle_orm_1.eq)(order_model_1.orderSchema.id, orderFabrication[0].orderId));
         // Update the order fab status
         await db_1.db.update(order_model_1.orderFabricationSchema)
             .set({ status: 'finish' })
@@ -194,16 +194,23 @@ async function updateStatusShopFloor(req, res, next) {
         }
         const currentTime = new Date().toLocaleString('sv-SE').replace(' ', 'T');
         const updatedData = { status };
+        let kanbanStatus = 'queue';
         if (status === 'in_progress') {
             updatedData.actualStart = currentTime;
+            kanbanStatus = 'progress';
         }
         else if (status === 'finish') {
             updatedData.actualFinish = currentTime;
+            kanbanStatus = 'done';
         }
         // Update status
         await db_1.db.update(part_model_1.partShopFloorSchema)
             .set(updatedData)
             .where((0, drizzle_orm_1.eq)(part_model_1.partShopFloorSchema.id, shopFloor[0].id));
+        // Update kanban status
+        await db_1.db.update(kanban_model_1.kanbanSchema)
+            .set({ status: kanbanStatus })
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(kanban_model_1.kanbanSchema.orderId, shopFloor[0].orderId), (0, drizzle_orm_1.eq)(kanban_model_1.kanbanSchema.stationId, const_1.STATION_ID.FABRICATION)));
         // If status is finish, change order status to deliver
         if (status === 'finish') {
             const result = await db_1.db.update(order_model_1.orderFabricationSchema)
@@ -240,6 +247,7 @@ async function getAllKanbans(req, res, next) {
             .innerJoin(order_model_1.orderFabricationSchema, (0, drizzle_orm_1.eq)(order_model_1.orderFabricationSchema.orderId, order_model_1.orderSchema.id))
             .innerJoin(part_model_1.partShopFloorSchema, (0, drizzle_orm_1.eq)(part_model_1.partShopFloorSchema.orderId, order_model_1.orderSchema.id))
             .innerJoin(part_model_1.partSchema, (0, drizzle_orm_1.eq)(part_model_1.partSchema.id, order_model_1.orderFabricationSchema.partId))
+            .where((0, drizzle_orm_1.eq)(kanban_model_1.kanbanSchema.stationId, const_1.STATION_ID.FABRICATION))
             .orderBy((0, drizzle_orm_1.desc)(kanban_model_1.kanbanSchema.createdAt));
         // Organize kanbans based on status
         const kanbansData = {

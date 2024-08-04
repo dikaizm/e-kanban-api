@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateQR = void 0;
+exports.getStationName = exports.generateQR = void 0;
 const qrcode_1 = __importDefault(require("qrcode"));
 // With async/await
 const generateQR = async (text) => {
@@ -17,4 +17,17 @@ const generateQR = async (text) => {
     }
 };
 exports.generateQR = generateQR;
+const getStationName = (id) => {
+    switch (id) {
+        case 1:
+            return 'Assembly Line';
+        case 2:
+            return 'Assembly Store';
+        case 3:
+            return 'Fabrication';
+        default:
+            return 'Unknown';
+    }
+};
+exports.getStationName = getStationName;
 //# sourceMappingURL=qr-code.js.map
