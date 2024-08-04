@@ -210,7 +210,7 @@ type UpdateStatusShopFloorRequest = {
 
 type UpdatedShopFloorData = {
   status: 'pending' | 'in_progress' | 'finish';
-  actualStart?: string;
+  actualStart?: string | null;
   actualFinish?: string;
 };
 
@@ -249,8 +249,14 @@ async function updateStatusShopFloor(req: Request, res: Response, next: NextFunc
     const updatedData: UpdatedShopFloorData = { status };
     let kanbanStatus: 'queue' | 'progress' | 'done' = 'queue';
     if (status === 'in_progress') {
-      updatedData.actualStart = currentTime;
-      kanbanStatus = 'progress';
+      if (shopFloor[0].status === 'in_progress') {
+        updatedData.actualStart = null;
+        updatedData.status = 'pending';
+        kanbanStatus = 'queue';
+      } else {
+        updatedData.actualStart = currentTime;
+        kanbanStatus = 'progress';
+      }
     } else if (status === 'finish') {
       updatedData.actualFinish = currentTime;
       kanbanStatus = 'done';

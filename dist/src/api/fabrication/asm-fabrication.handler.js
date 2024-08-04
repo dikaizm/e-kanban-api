@@ -196,8 +196,15 @@ async function updateStatusShopFloor(req, res, next) {
         const updatedData = { status };
         let kanbanStatus = 'queue';
         if (status === 'in_progress') {
-            updatedData.actualStart = currentTime;
-            kanbanStatus = 'progress';
+            if (shopFloor[0].status === 'in_progress') {
+                updatedData.actualStart = null;
+                updatedData.status = 'pending';
+                kanbanStatus = 'queue';
+            }
+            else {
+                updatedData.actualStart = currentTime;
+                kanbanStatus = 'progress';
+            }
         }
         else if (status === 'finish') {
             updatedData.actualFinish = currentTime;
