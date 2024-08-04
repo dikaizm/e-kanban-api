@@ -57,3 +57,17 @@ npm run test
 ```
 npm run dev
 ```
+
+
+## Project Documentation
+
+### ERD
+<img width="844" alt="image" src="https://github.com/user-attachments/assets/9324af93-b08f-4195-b201-0bc743a0727f">
+
+### MVC Architecture Workflow
+1. Route: The route is accessed via a web request.
+2. Handler: The request is routed to a handler method in Handler.
+3. Service: The handler method calls Service to perform business logic, such as fetching data from the database.
+4. Response: The handler returns the processed data as an HTTP response.
+
+Currently not yet separated as MVC, might do it later when there's time to further manage this project.
