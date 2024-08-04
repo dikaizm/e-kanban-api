@@ -33,3 +33,17 @@ export const partShopFloorSchema = mysqlTable('parts_shop_floor', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').onUpdateNow(),
 });
+
+export const componentSchema = mysqlTable('components', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 256 }).notNull(),
+  quantity: int('quantity').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').onUpdateNow(),
+});
+
+export const partComponentSchema = mysqlTable('parts_component', {
+  id: serial('id').primaryKey(),
+  partId: int('part_id').notNull().references(() => partSchema.id),
+  componentId: int('component_id').notNull().references(() => componentSchema.id),
+});

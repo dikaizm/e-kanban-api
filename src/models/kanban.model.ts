@@ -12,6 +12,7 @@ export const kanbanSchema = mysqlTable('kanbans', {
   orderDate: datetime('order_date', { mode: 'string' }).notNull(),
   finishDate: datetime('finish_date', { mode: 'string' }),
   planStart: datetime('plan_start', { mode: 'string' }),
+  stationId: int('station_id').notNull().references(() => stationSchema.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').onUpdateNow(),
 });
@@ -19,8 +20,8 @@ export const kanbanSchema = mysqlTable('kanbans', {
 export const kanbanWithdrawalSchema = mysqlTable('kanbans_withdrawal', {
   id: serial('id').primaryKey(),
   kanbanId: varchar('kanban_id', { length: 16 }).notNull().references(() => kanbanSchema.id),
-  prevStation: int('prev_station').notNull().references(() => stationSchema.id),
-  nextStation: int('next_station').notNull().references(() => stationSchema.id),
+  prevStationId: int('prev_station_id').notNull().references(() => stationSchema.id),
+  nextStationId: int('next_station_id').notNull().references(() => stationSchema.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').onUpdateNow(),
 });

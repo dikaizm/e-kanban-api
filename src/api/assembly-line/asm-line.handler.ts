@@ -2,11 +2,15 @@ import apiResponse from '../../utils/api-response';
 import { NextFunction, Request, Response } from 'express';
 import HandlerFunction from '../../utils/handler-function';
 import { db } from '../../db';
-import { partSchema, partStoreSchema } from '../../models/part.model';
-import { eq } from 'drizzle-orm';
-import { orderSchema, orderStoreSchema } from '../../models/order.model';
-import { STATION_ID } from '../../const/global.const';
+import { componentSchema, partComponentSchema, partSchema, partStoreSchema } from '../../models/part.model';
+import { desc, eq } from 'drizzle-orm';
+import { orderLineSchema, orderSchema, orderStoreSchema } from '../../models/order.model';
+import { STATION_ID } from '../../const';
 import { ApiErr } from '../../utils/api-error';
+import { kanbanSchema, kanbanWithdrawalSchema } from '../../models/kanban.model';
+import { generateQR } from '../../utils/qr-code';
+import { KanbanFilterType } from '../../type';
+import { stationSchema } from '../../models/station.model';
 
 interface AsmLineHandler {
   getAllParts: HandlerFunction;
@@ -15,7 +19,8 @@ interface AsmLineHandler {
 
   createOrder: HandlerFunction;
 
-  startAssembleProduct: HandlerFunction;
+  startAssembleComponent: HandlerFunction;
+  getAllKanbans: HandlerFunction;
 }
 
 const PART_STATUS = {
@@ -87,7 +92,7 @@ async function updatePartQuantity(req: Request, res: Response, next: NextFunctio
 
 async function createOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { partNumber, quantity } = req.body;
+    const { partNumber, quantity, requestHost } = req.body;
     if (!partNumber || !quantity) {
       res.status(400).json(apiResponse.error('Invalid request'));
     }
@@ -130,23 +135,183 @@ async function createOrder(req: Request, res: Response, next: NextFunction): Pro
       status: 'pending',
     });
 
+    // Insert to kanban
+    const currentTime = new Date().toLocaleString('sv-SE').replace(' ', 'T');
+    const kanbanId = `${Math.random().toString(36).substr(2, 8)}-${Math.floor(Math.random() * 1E7)}`;
+
+    const qrCodeContent = `${requestHost}/confirm-kanban/${kanbanId}`;
+    const qrCode = await generateQR(qrCodeContent);
+
+    const newKanban = await db.insert(kanbanSchema).values({
+      id: kanbanId,
+      cardId: 'RYIN001',
+      type: 'production',
+      status: 'queue',
+      qrCode: qrCode,
+      orderId: order[0].insertId,
+      orderDate: currentTime,
+      planStart: currentTime,
+      stationId: STATION_ID.ASSEMBLY_LINE,
+    });
+    if (newKanban[0].affectedRows === 0) {
+      throw ApiErr('Failed to create kanban', 500);
+    }
+
     res.json(apiResponse.success('Order created successfully', null));
   } catch (error) {
     next(error);
   }
 }
 
-async function startAssembleProduct(req: Request, res: Response, next: NextFunction) {
+async function startAssembleComponent(req: Request, res: Response, next: NextFunction) {
   try {
+    const { requestHost, componentId } = req.body;
+    if (!requestHost || !componentId) {
+      throw ApiErr('Invalid request', 400);
+    }
+
     // Update each part quantity
     const parts = await db.select().from(partSchema);
 
-    for (const part of parts) {
-      await db.update(partSchema).set({ quantity: part.quantity - part.quantityReq }).where(eq(partSchema.id, part.id));
+    let isPartComponentExist = false;
+    const partComponent = await db.select().from(partComponentSchema).where(eq(partComponentSchema.componentId, componentId));
+    if (partComponent.length > 0) {
+      isPartComponentExist = true;
     }
+
+    for (const part of parts) {
+      // Count part availability
+      const newQuantity = part.quantity - part.quantityReq;
+      if (newQuantity < 0) {
+        throw ApiErr('Part quantity does not meet requirement', 400);
+      }
+      await db.update(partSchema).set({ quantity: newQuantity }).where(eq(partSchema.id, part.id));
+
+      // Insert to part component if not exist
+      if (!isPartComponentExist) {
+        await db.insert(partComponentSchema).values({
+          componentId: componentId,
+          partId: part.id,
+        });
+      }
+    }
+
+    // Create new order
+    const newOrder = await db.insert(orderSchema).values({
+      stationId: STATION_ID.ASSEMBLY_LINE,
+      createdBy: req.body.user.id,
+    });
+
+    // Insert to order line
+    await db.insert(orderLineSchema).values({
+      orderId: newOrder[0].insertId,
+      componentId: componentId,
+      status: 'progress',
+      quantity: 1,
+    });
+
+    // Insert to kanban
+    const currentTime = new Date().toLocaleString('sv-SE').replace(' ', 'T');
+    const kanbanId = `${Math.random().toString(36).substr(2, 8)}-${Math.floor(Math.random() * 1E7)}`;
+
+    const qrCodeContent = `${requestHost}/confirm-kanban/${kanbanId}`;
+    const qrCode = await generateQR(qrCodeContent);
+
+    const newKanban = await db.insert(kanbanSchema).values({
+      id: kanbanId,
+      cardId: 'RYIN002',
+      type: 'withdrawal',
+      status: 'progress',
+      qrCode: qrCode,
+      orderId: newOrder[0].insertId,
+      orderDate: currentTime,
+      planStart: currentTime,
+      stationId: STATION_ID.ASSEMBLY_LINE,
+    });
+    if (newKanban[0].affectedRows === 0) {
+      throw ApiErr('Failed to create kanban', 500);
+    }
+
+    // Insert to kanban withdrawal
+    await db.insert(kanbanWithdrawalSchema).values({
+      kanbanId: kanbanId,
+      prevStationId: STATION_ID.ASSEMBLY_STORE,
+      nextStationId: STATION_ID.ASSEMBLY_LINE,
+    });
 
     res.json(apiResponse.success('Start assemble product success', null));
 
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getAllKanbans(req: Request, res: Response, next: NextFunction) {
+  try {
+    const selectedWithdrawalColumns = {
+      id: kanbanSchema.id,
+      partName: componentSchema.name,
+      quantity: orderLineSchema.quantity,
+      planStart: kanbanSchema.planStart,
+      status: kanbanSchema.status,
+      cardId: kanbanSchema.cardId,
+      type: kanbanSchema.type,
+      orderId: kanbanSchema.orderId,
+      stationName: stationSchema.name,
+    };
+
+    const kanbanWithdrawals = await db.select(selectedWithdrawalColumns).from(kanbanSchema)
+      .innerJoin(kanbanWithdrawalSchema, eq(kanbanWithdrawalSchema.kanbanId, kanbanSchema.id))
+      .innerJoin(orderSchema, eq(orderSchema.id, kanbanSchema.orderId))
+      .innerJoin(orderLineSchema, eq(orderLineSchema.orderId, orderSchema.id))
+      .innerJoin(componentSchema, eq(componentSchema.id, orderLineSchema.componentId))
+      .innerJoin(stationSchema, eq(stationSchema.id, kanbanSchema.stationId))
+      .where(eq(kanbanSchema.stationId, STATION_ID.ASSEMBLY_LINE))
+      .orderBy(desc(kanbanSchema.createdAt));
+
+    const selectedProductionColumns = {
+      id: kanbanSchema.id,
+      partNumber: partSchema.partNumber,
+      partName: partSchema.partName,
+      quantity: orderStoreSchema.quantity,
+      planStart: kanbanSchema.planStart,
+      status: kanbanSchema.status,
+      cardId: kanbanSchema.cardId,
+      type: kanbanSchema.type,
+      orderId: kanbanSchema.orderId,
+      stationName: stationSchema.name,
+    };
+
+    const kanbanProductions = await db.select(selectedProductionColumns).from(kanbanSchema)
+      .innerJoin(orderSchema, eq(orderSchema.id, kanbanSchema.orderId))
+      .innerJoin(orderStoreSchema, eq(orderStoreSchema.orderId, orderSchema.id))
+      .innerJoin(partSchema, eq(partSchema.id, orderStoreSchema.partId))
+      .innerJoin(stationSchema, eq(stationSchema.id, kanbanSchema.stationId))
+      .where(eq(kanbanSchema.stationId, STATION_ID.ASSEMBLY_LINE))
+      .orderBy(desc(kanbanSchema.createdAt));
+
+    // Organize kanbans
+    const kanbansData: KanbanFilterType = {
+      queue: [],
+      progress: [],
+      done: [],
+    };
+
+    kanbanProductions.forEach((kanban) => {
+      if (kanban.status === 'queue') {
+        kanbansData.queue.push(kanban);
+      }
+    });
+
+    kanbanWithdrawals.forEach((kanban) => {
+      if (kanban.status === 'progress') {
+        kanbansData.progress.push(kanban);
+      } else if (kanban.status === 'done') {
+        kanbansData.done.push(kanban);
+      }
+    });
+
+    res.json(apiResponse.success('Kanbans retrieved successfully', kanbansData));
   } catch (error) {
     next(error);
   }
@@ -157,5 +322,6 @@ export default {
   getPartById,
   updatePartQuantity,
   createOrder,
-  startAssembleProduct,
+  startAssembleComponent,
+  getAllKanbans,
 } satisfies AsmLineHandler;

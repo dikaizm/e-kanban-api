@@ -1,12 +1,13 @@
 import { NextFunction, Request, Response } from 'express';
 import HandlerFunction from '../../utils/handler-function';
 import { db } from '../../db';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { deliverOrderFabricationSchema, orderFabricationSchema, orderSchema } from '../../models/order.model';
 import apiResponse from '../../utils/api-response';
 import { partSchema, partShopFloorSchema, partStoreSchema } from '../../models/part.model';
-import { KANBAN_ID, STATION_ID } from '../../const/global.const';
+import { KANBAN_ID, STATION_ID } from '../../const';
 import { kanbanSchema } from '../../models/kanban.model';
+import { KanbanFilterType } from '../../type';
 
 interface AsmFabricationHandler {
   getAllOrders: HandlerFunction;
@@ -246,16 +247,24 @@ async function updateStatusShopFloor(req: Request, res: Response, next: NextFunc
     const currentTime = new Date().toLocaleString('sv-SE').replace(' ', 'T');
 
     const updatedData: UpdatedShopFloorData = { status };
+    let kanbanStatus: 'queue' | 'progress' | 'done' = 'queue';
     if (status === 'in_progress') {
       updatedData.actualStart = currentTime;
+      kanbanStatus = 'progress';
     } else if (status === 'finish') {
       updatedData.actualFinish = currentTime;
+      kanbanStatus = 'done';
     }
 
     // Update status
     await db.update(partShopFloorSchema)
       .set(updatedData)
       .where(eq(partShopFloorSchema.id, shopFloor[0].id));
+
+    // Update kanban status
+    await db.update(kanbanSchema)
+      .set({ status: kanbanStatus })
+      .where(and(eq(kanbanSchema.orderId, shopFloor[0].orderId), eq(kanbanSchema.stationId, STATION_ID.FABRICATION)));
 
     // If status is finish, change order status to deliver
     if (status === 'finish') {
@@ -273,22 +282,6 @@ async function updateStatusShopFloor(req: Request, res: Response, next: NextFunc
   } catch (error) {
     next(error);
   }
-}
-
-interface KanbanType {
-  id: string;
-  partNumber: string;
-  partName: string;
-  quantity: number;
-  planStart: string | null;
-  status: 'queue' | 'progress' | 'done';
-  type: 'production' | 'withdrawal';
-}
-
-interface KanbanFilterType {
-  queue: KanbanType[];
-  progress: KanbanType[];
-  done: KanbanType[];
 }
 
 async function getAllKanbans(req: Request, res: Response, next: NextFunction) {
@@ -311,6 +304,7 @@ async function getAllKanbans(req: Request, res: Response, next: NextFunction) {
       .innerJoin(orderFabricationSchema, eq(orderFabricationSchema.orderId, orderSchema.id))
       .innerJoin(partShopFloorSchema, eq(partShopFloorSchema.orderId, orderSchema.id))
       .innerJoin(partSchema, eq(partSchema.id, orderFabricationSchema.partId))
+      .where(eq(kanbanSchema.stationId, STATION_ID.FABRICATION))
       .orderBy(desc(kanbanSchema.createdAt));
 
     // Organize kanbans based on status

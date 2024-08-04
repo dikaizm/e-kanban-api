@@ -3,9 +3,9 @@ import HandlerFunction from '../../utils/handler-function';
 import apiResponse from '../../utils/api-response';
 import { db } from '../../db';
 import { deliverOrderFabricationSchema, orderFabricationSchema, orderSchema, orderStoreSchema } from '../../models/order.model';
-import { desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { partSchema, partShopFloorSchema, partStoreSchema } from '../../models/part.model';
-import { KANBAN_ID, STATION_ID } from '../../const/global.const';
+import { KANBAN_ID, STATION_ID } from '../../const';
 import { kanbanSchema } from '../../models/kanban.model';
 import { generateQR } from '../../utils/qr-code';
 import { ApiErr } from '../../utils/api-error';
@@ -115,6 +115,7 @@ async function updateOrderStatus(req: Request, res: Response, next: NextFunction
         qrCode: qrCode,
         orderId: orderStore[0].orderId,
         orderDate: currentTime,
+        stationId: STATION_ID.FABRICATION,
       });
 
       // Change part store status to order_to_fabrication
@@ -124,7 +125,11 @@ async function updateOrderStatus(req: Request, res: Response, next: NextFunction
 
     } else if (status === 'deliver') {
 
+      // Update order store status to finish
       await db.update(orderStoreSchema).set({ status: 'finish' }).where(eq(orderStoreSchema.id, id));
+
+      // Update kanban status to done
+      await db.update(kanbanSchema).set({ status: 'done' }).where(and(eq(kanbanSchema.orderId, orderStore[0].orderId), eq(kanbanSchema.stationId, STATION_ID.ASSEMBLY_LINE)));
 
       // Get part
       const part = await db.select()
