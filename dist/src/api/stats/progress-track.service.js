@@ -4,8 +4,17 @@ const drizzle_orm_1 = require("drizzle-orm");
 const db_1 = require("../../db");
 const order_model_1 = require("../../models/order.model");
 const part_model_1 = require("../../models/part.model");
+const kanban_model_1 = require("../../models/kanban.model");
+const const_1 = require("../../const");
 async function getAssemblyLineProgress() {
-    return 0;
+    const kanbans = await db_1.db.select().from(kanban_model_1.kanbanSchema).where((0, drizzle_orm_1.eq)(kanban_model_1.kanbanSchema.stationId, const_1.STATION_ID.ASSEMBLY_LINE));
+    if (kanbans.length === 0)
+        return 0;
+    // Count kanban with status queue and progress
+    const queueCount = kanbans.filter(kanban => kanban.status === 'queue').length;
+    const progressCount = kanbans.filter(kanban => kanban.status === 'progress').length;
+    const totalCount = queueCount + progressCount;
+    return Math.floor((progressCount / totalCount) * 100);
 }
 async function getAssemblyStoreProgress() {
     // Get order store data

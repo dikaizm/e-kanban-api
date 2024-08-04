@@ -22,6 +22,7 @@ async function getProgressTrack(req: Request, res: Response, next: NextFunction)
     };
 
     // Get assembly line data
+    progressData.assemblyLine = await progressTrackService.getAssemblyLineProgress();
 
     // Get assembly store data
     progressData.assemblyStore = await progressTrackService.getAssemblyStoreProgress();

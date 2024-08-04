@@ -1,7 +1,9 @@
-import { inArray } from 'drizzle-orm';
+import { inArray, eq } from 'drizzle-orm';
 import { db } from '../../db';
 import { orderFabricationSchema, orderStoreSchema } from '../../models/order.model';
 import { partShopFloorSchema } from '../../models/part.model';
+import { kanbanSchema } from '../../models/kanban.model';
+import { STATION_ID } from '../../const';
 
 interface StatsProgressTrackService {
   getAssemblyLineProgress: () => Promise<number>;
@@ -10,7 +12,15 @@ interface StatsProgressTrackService {
 }
 
 async function getAssemblyLineProgress() {
-  return 0;
+  const kanbans = await db.select().from(kanbanSchema).where(eq(kanbanSchema.stationId, STATION_ID.ASSEMBLY_LINE));
+  if (kanbans.length === 0) return 0;
+
+  // Count kanban with status queue and progress
+  const queueCount = kanbans.filter(kanban => kanban.status === 'queue').length;
+  const progressCount = kanbans.filter(kanban => kanban.status === 'progress').length;
+  const totalCount = queueCount + progressCount;
+
+  return Math.floor((progressCount / totalCount) * 100);
 }
 
 async function getAssemblyStoreProgress() {

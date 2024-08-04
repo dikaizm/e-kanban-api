@@ -17,6 +17,7 @@ async function getProgressTrack(req, res, next) {
             fabrication: 0,
         };
         // Get assembly line data
+        progressData.assemblyLine = await progress_track_service_1.default.getAssemblyLineProgress();
         // Get assembly store data
         progressData.assemblyStore = await progress_track_service_1.default.getAssemblyStoreProgress();
         // Get fabrication data
